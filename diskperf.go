@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -42,7 +42,7 @@ func GetDiskPerformanceInfo(rootPathName string) (*DiskPerformanceInfo, error) {
 	hFile, err := wrappers.CreateFile(
 		syscall.StringToUTF16Ptr(rootPathName),
 		0,
-		wrappers.FILE_SHARE_READ | wrappers.FILE_SHARE_WRITE,
+		wrappers.FILE_SHARE_READ|wrappers.FILE_SHARE_WRITE,
 		nil,
 		wrappers.OPEN_EXISTING,
 		0,

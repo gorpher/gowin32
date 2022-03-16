@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
- package gowin32
+package gowin32
 
- import (
- 	 "github.com/winlabs/gowin32/wrappers"
- )
+import (
+	"github.com/gorpher/gowin32/wrappers"
+)
 
- func EnableVTSequences() error {
+func EnableVTSequences() error {
 	err := addStdConsoleModeFlag(
 		wrappers.STD_OUTPUT_HANDLE,
 		wrappers.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
@@ -46,4 +46,4 @@ func addStdConsoleModeFlag(stdHandle uint32, modeFlag uint32) error {
 		return NewWindowsError("SetConsoleMode", err)
 	}
 	return nil
- }
+}

@@ -19,7 +19,7 @@ package gowin32
 import (
 	"syscall"
 
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 )
 
 type InitiateShutdownFlags uint32

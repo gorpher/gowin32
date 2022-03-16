@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"time"
@@ -216,7 +216,7 @@ func GetProcessTimeCounters(pid uint) (*ProcessTimeCounters, error) {
 
 func GetProcessCommandLine(pid uint) (string, error) {
 	hProcess, err := wrappers.OpenProcess(
-		wrappers.PROCESS_QUERY_INFORMATION | wrappers.PROCESS_VM_READ,
+		wrappers.PROCESS_QUERY_INFORMATION|wrappers.PROCESS_VM_READ,
 		false,
 		uint32(pid))
 	if err != nil {

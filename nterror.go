@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"fmt"
 	"strings"
@@ -35,7 +35,7 @@ func (self NTError) Error() string {
 	defer wrappers.FreeLibrary(hModule)
 	var message *uint16
 	_, err = wrappers.FormatMessage(
-		wrappers.FORMAT_MESSAGE_ALLOCATE_BUFFER | wrappers.FORMAT_MESSAGE_FROM_SYSTEM | wrappers.FORMAT_MESSAGE_FROM_HMODULE,
+		wrappers.FORMAT_MESSAGE_ALLOCATE_BUFFER|wrappers.FORMAT_MESSAGE_FROM_SYSTEM|wrappers.FORMAT_MESSAGE_FROM_HMODULE,
 		uintptr(hModule),
 		uint32(self),
 		0,

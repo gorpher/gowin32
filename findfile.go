@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"path/filepath"
 	"syscall"

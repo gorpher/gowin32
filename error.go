@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"fmt"
 )

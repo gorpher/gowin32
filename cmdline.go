@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -32,7 +32,7 @@ func ParseCommandLine(commandLine string) ([]string, error) {
 		return nil, NewWindowsError("CommandLineToArgvW", err)
 	}
 	args := make([]string, numArgs)
-	for i, _ := range(args) {
+	for i, _ := range args {
 		args[i] = LpstrToString(*rawArgs)
 		rawArgs = (**uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(rawArgs)) + unsafe.Sizeof(*rawArgs)))
 	}

@@ -6,7 +6,7 @@ import (
 	"net"
 	"unsafe"
 
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 )
 
 // SendARP sends an ARP request. srcIP can be nil

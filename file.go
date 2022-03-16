@@ -19,7 +19,7 @@ package gowin32
 import (
 	"strings"
 
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"os"
 	"syscall"

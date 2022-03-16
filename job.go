@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -114,7 +114,7 @@ func (self *Job) Close() error {
 
 func (self *Job) AssignProcess(pid uint) error {
 	hProcess, err := wrappers.OpenProcess(
-		wrappers.PROCESS_SET_QUOTA | wrappers.PROCESS_TERMINATE,
+		wrappers.PROCESS_SET_QUOTA|wrappers.PROCESS_TERMINATE,
 		false,
 		uint32(pid))
 	if err != nil {
@@ -174,10 +174,10 @@ func (self *Job) GetExtendedLimitInfo() (*JobExtendedLimitInfo, error) {
 			PriorityClass:           uint(info.BasicLimitInformation.PriorityClass),
 			SchedulingClass:         uint(info.BasicLimitInformation.SchedulingClass),
 		},
-		ProcessMemoryLimit:      info.ProcessMemoryLimit,
-		JobMemoryLimit:          info.JobMemoryLimit,
-		PeakProcessMemoryUsed:   info.PeakProcessMemoryUsed,
-		PeakJobMemoryUsed:       info.PeakJobMemoryUsed,
+		ProcessMemoryLimit:    info.ProcessMemoryLimit,
+		JobMemoryLimit:        info.JobMemoryLimit,
+		PeakProcessMemoryUsed: info.PeakProcessMemoryUsed,
+		PeakJobMemoryUsed:     info.PeakJobMemoryUsed,
 	}, nil
 }
 
@@ -206,7 +206,7 @@ func (self *Job) GetProcesses() ([]uint, error) {
 	if err != nil && err != wrappers.ERROR_MORE_DATA {
 		return nil, NewWindowsError("QueryInformationJobObject", err)
 	}
-	buf := make([]byte, unsafe.Sizeof(info) + unsafe.Sizeof(info.ProcessIdList[0])*uintptr(info.NumberOfAssignedProcesses - 1))
+	buf := make([]byte, unsafe.Sizeof(info)+unsafe.Sizeof(info.ProcessIdList[0])*uintptr(info.NumberOfAssignedProcesses-1))
 	err = wrappers.QueryInformationJobObject(
 		self.handle,
 		wrappers.JobObjectBasicProcessIdList,

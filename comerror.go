@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"fmt"
 	"strings"
@@ -62,7 +62,7 @@ var (
 func (self COMError) Error() string {
 	var message *uint16
 	_, err := wrappers.FormatMessage(
-		wrappers.FORMAT_MESSAGE_ALLOCATE_BUFFER | wrappers.FORMAT_MESSAGE_IGNORE_INSERTS | wrappers.FORMAT_MESSAGE_FROM_SYSTEM,
+		wrappers.FORMAT_MESSAGE_ALLOCATE_BUFFER|wrappers.FORMAT_MESSAGE_IGNORE_INSERTS|wrappers.FORMAT_MESSAGE_FROM_SYSTEM,
 		0,
 		uint32(self),
 		0,

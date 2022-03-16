@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -47,7 +47,7 @@ func CreateRegKey(root RegRoot, subKey string) (*RegKey, error) {
 		0,
 		nil,
 		0,
-		wrappers.KEY_READ | wrappers.KEY_WRITE,
+		wrappers.KEY_READ|wrappers.KEY_WRITE,
 		nil,
 		&hKey,
 		nil)
@@ -366,7 +366,7 @@ func (self *RegKey) SetValueString(valueName string, data string) error {
 		0,
 		wrappers.REG_SZ,
 		(*byte)(unsafe.Pointer(syscall.StringToUTF16Ptr(data))),
-		uint32(2*(len(data) + 1)))
+		uint32(2*(len(data)+1)))
 	if err != nil {
 		return NewWindowsError("RegSetValueEx", err)
 	}

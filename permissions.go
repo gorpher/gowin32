@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -90,7 +90,7 @@ func SetFilePermissions(fileName string, permissions []PermissionEntry) error {
 			AccessPermissions: uint32(entry.Permissions),
 			AccessMode:        int32(entry.AccessMode),
 			Inheritance:       wrappers.NO_INHERITANCE,
-			Trustee:           wrappers.TRUSTEE{
+			Trustee: wrappers.TRUSTEE{
 				MultipleTrustee:          nil,
 				MultipleTrusteeOperation: wrappers.NO_MULTIPLE_TRUSTEE,
 				TrusteeForm:              wrappers.TRUSTEE_IS_SID,
@@ -99,7 +99,7 @@ func SetFilePermissions(fileName string, permissions []PermissionEntry) error {
 			},
 		})
 	}
-	
+
 	var acl *wrappers.ACL
 	if err := wrappers.SetEntriesInAcl(uint32(len(explicitAccess)), &explicitAccess[0], nil, &acl); err != nil {
 		return NewWindowsError("SetEntriesInAcl", err)

@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 )
@@ -30,7 +30,7 @@ func GetCurrentExePath() (string, error) {
 			if _, err := wrappers.GetModuleFileName(0, &buf[0], syscall.MAX_LONG_PATH); err != nil {
 				return "", NewWindowsError("GetModuleFileName", err)
 			}
-		}  else {
+		} else {
 			return "", NewWindowsError("GetModuleFileName", err)
 		}
 	}

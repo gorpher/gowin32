@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 )
@@ -38,7 +38,7 @@ func GetFQDN() (string, error) {
 
 func GetNetBIOSName() (string, error) {
 	nbLength := uint32(wrappers.MAX_COMPUTERNAME_LENGTH)
-	nbBuffer := make([]uint16, nbLength + 1)
+	nbBuffer := make([]uint16, nbLength+1)
 	if err := wrappers.GetComputerName(&nbBuffer[0], &nbLength); err != nil {
 		return "", NewWindowsError("GetComputerName", err)
 	}

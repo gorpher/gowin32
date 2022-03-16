@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"fmt"
 	"net"
@@ -41,6 +41,32 @@ const (
 	WTSConnectStateDown         WTSConnectState = wrappers.WTSDown
 	WTSConnectStateInit         WTSConnectState = wrappers.WTSInit
 )
+
+func (w WTSConnectState) String() string {
+	switch w {
+	case wrappers.WTSActive:
+		return "WTSActive"
+	case wrappers.WTSConnected:
+		return "WTSConnected"
+	case wrappers.WTSConnectQuery:
+		return "WTSConnectQuery"
+	case wrappers.WTSShadow:
+		return "WTSShadow"
+	case wrappers.WTSDisconnected:
+		return "WTSDisconnected"
+	case wrappers.WTSIdle:
+		return "WTSIdle"
+	case wrappers.WTSListen:
+		return "WTSListen"
+	case wrappers.WTSReset:
+		return "WTSReset"
+	case wrappers.WTSDown:
+		return "WTSDown"
+	case wrappers.WTSInit:
+		return "WTSInit"
+	}
+	return ""
+}
 
 // WTSClientProtocolType enum type go version of WTSClientProtocolType
 type WTSClientProtocolType uint32
@@ -123,6 +149,20 @@ type WTSSessionInfo struct {
 	SessionID      uint
 	WinStationName string
 	State          WTSConnectState
+}
+type WTSPROCESSInfo struct {
+	SessionId         uint
+	ProcessId         uint
+	ProcessName       string
+	UserSid           uint
+	NumberOfThreads   int64
+	HandleCount       int64
+	PagefileUsage     int64 // 虚拟内存
+	PeakPagefileUsage int64 // 峰值虚拟内存
+	Memory            int64
+	PeakMemory        int64 // 峰值内存
+	UserTime          int64
+	KernelTime        int64
 }
 
 type WTSServer struct {
@@ -334,6 +374,59 @@ func (wts *WTSServer) QuerySessionAddressV4(sessionID uint) (wrappers.WTS_CLIENT
 
 func (wts *WTSServer) QuerySessionIsRemoteSession(sessionID uint) (bool, error) {
 	return wts.querySessionInformationAsBool(sessionID, wrappers.WTSIsRemoteSession)
+}
+
+func (wts *WTSServer) QuerySessionProcessEx(sessionID uint) ([]WTSPROCESSInfo, error) {
+	var processInfo *wrappers.WTS_PROCESS_INFO_EX = nil
+	var count uint32 = 0
+	var level uint32 = 1
+	fmt.Printf("sessionID: %d\n", sessionID)
+	if err := wrappers.WTSEnumerateProcessesEX(wts.handle, &level, uint32(sessionID), &processInfo, &count); err != nil {
+		return nil, err
+	}
+	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(processInfo)))
+
+	si := processInfo
+	result := make([]WTSPROCESSInfo, count)
+	for i := uint32(0); i < count; i++ {
+		result[i] = WTSPROCESSInfo{
+			SessionId:         uint(si.SessionId),
+			ProcessId:         uint(si.ProcessId),
+			ProcessName:       LpstrToString(si.ProcessName),
+			UserSid:           uint(si.UserSid),
+			NumberOfThreads:   int64(si.NumberOfThreads),
+			HandleCount:       int64(si.HandleCount),
+			PagefileUsage:     int64(si.PagefileUsage),
+			PeakPagefileUsage: int64(si.PeakPagefileUsage),
+			Memory:            int64(si.WorkingSetSize),
+			PeakMemory:        int64(si.PeakWorkingSetSize),
+			UserTime:          int64(si.UserTime),
+			KernelTime:        int64(si.UserTime),
+		}
+		si = (*wrappers.WTS_PROCESS_INFO_EX)(unsafe.Pointer(uintptr(unsafe.Pointer(si)) + unsafe.Sizeof(*si)))
+	}
+	return result, nil
+}
+
+func (wts *WTSServer) QuerySessionProcess(sessionID uint) ([]WTSPROCESSInfo, error) {
+	var processInfo *wrappers.WTS_PROCESS_INFO
+	var count uint32
+	var level uint32 = 0
+	if err := wrappers.WTSEnumerateProcesses(wts.handle, &level, uint32(sessionID), &processInfo, &count); err != nil {
+		return nil, err
+	}
+	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(processInfo)))
+	si := processInfo
+	result := make([]WTSPROCESSInfo, count)
+	for i := uint32(0); i < count; i++ {
+		result[i] = WTSPROCESSInfo{SessionId: uint(si.SessionId),
+			ProcessId:   uint(si.ProcessId),
+			ProcessName: LpstrToString(si.ProcessName),
+			UserSid:     uint(si.UserSid),
+		}
+		si = (*wrappers.WTS_PROCESS_INFO)(unsafe.Pointer(uintptr(unsafe.Pointer(si)) + unsafe.Sizeof(*si)))
+	}
+	return result, nil
 }
 
 func (wts *WTSServer) QueryUserToken(sessionID uint) (*Token, error) {

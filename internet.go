@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 	"unsafe"
@@ -180,7 +180,7 @@ func (self *HTTPRequest) GetStatusCode() (HTTPStatusCode, error) {
 	index := uint32(0)
 	err := wrappers.HttpQueryInfo(
 		self.handle,
-		wrappers.HTTP_QUERY_STATUS_CODE | wrappers.HTTP_QUERY_FLAG_NUMBER,
+		wrappers.HTTP_QUERY_STATUS_CODE|wrappers.HTTP_QUERY_FLAG_NUMBER,
 		(*byte)(unsafe.Pointer(&statusCode)),
 		&bufferLength,
 		&index)
@@ -228,7 +228,7 @@ func (self *InternetConnection) OpenHTTPRequest(verb string, objectName string, 
 	}
 	var acceptTypesRaw **uint16
 	if acceptTypes != nil {
-		acceptTypesPtrs := make([]*uint16, len(acceptTypes), len(acceptTypes) + 1)
+		acceptTypesPtrs := make([]*uint16, len(acceptTypes), len(acceptTypes)+1)
 		for i := range acceptTypes {
 			acceptTypesPtrs[i] = syscall.StringToUTF16Ptr(acceptTypes[i])
 		}

@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 )
@@ -45,7 +45,7 @@ type EventSourceRegistration struct {
 func (self *EventSourceRegistration) Install() error {
 	key, err := CreateRegKey(
 		RegRootHKLM,
-		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" + self.SourceName)
+		"SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\"+self.SourceName)
 	if err != nil {
 		return err
 	}

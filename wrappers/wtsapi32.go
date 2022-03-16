@@ -136,6 +136,28 @@ type WTS_CLIENT_DISPLAY struct {
 	ColorDepth           uint32
 }
 
+type WTS_PROCESS_INFO struct {
+	SessionId   uint32
+	ProcessId   uint32
+	ProcessName *uint16
+	UserSid     uint32
+}
+
+type WTS_PROCESS_INFO_EX struct {
+	SessionId          uint32
+	ProcessId          uint32
+	ProcessName        *uint16
+	UserSid            uint32
+	NumberOfThreads    uint32
+	HandleCount        uint32
+	PagefileUsage      uint32
+	PeakPagefileUsage  uint32
+	WorkingSetSize     uint32
+	PeakWorkingSetSize uint32
+	UserTime           uint32 //LARGE_INTEGER
+	KernelTime         uint32
+}
+
 var (
 	modwtsapi32 = syscall.NewLazyDLL("wtsapi32.dll")
 
@@ -146,8 +168,45 @@ var (
 	procWTSLogoffSession           = modwtsapi32.NewProc("WTSLogoffSession")
 	procWTSQuerySessionInformation = modwtsapi32.NewProc("WTSQuerySessionInformationW")
 	procWTSQueryUserToken          = modwtsapi32.NewProc("WTSQueryUserToken")
+	procWTSEnumerateProcessesEx    = modwtsapi32.NewProc("WTSEnumerateProcessesExW")
 )
 
+func WTSEnumerateProcessesEX(handle syscall.Handle, level *uint32, sessionId uint32, pProcessInfo **WTS_PROCESS_INFO_EX, count *uint32) error {
+	r1, _, e1 := syscall.Syscall6(procWTSEnumerateProcessesEx.Addr(),
+		5,
+		uintptr(handle),
+		uintptr(unsafe.Pointer(level)),
+		uintptr(sessionId),
+		uintptr(unsafe.Pointer(pProcessInfo)),
+		uintptr(unsafe.Pointer(count)),
+		0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+func WTSEnumerateProcesses(handle syscall.Handle, reserved *uint32, sessionId uint32, pProcessInfo **WTS_PROCESS_INFO, count *uint32) error {
+	r1, _, e1 := syscall.Syscall6(procWTSEnumerateProcessesEx.Addr(),
+		5,
+		uintptr(handle),
+		uintptr(unsafe.Pointer(reserved)),
+		uintptr(sessionId),
+		uintptr(unsafe.Pointer(pProcessInfo)),
+		uintptr(unsafe.Pointer(count)),
+		0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
 func WTSCloseServer(handle syscall.Handle) {
 	syscall.Syscall6(procWTSCloseServer.Addr(), 1, uintptr(handle), 0, 0, 0, 0, 0)
 }

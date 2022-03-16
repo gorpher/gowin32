@@ -17,7 +17,7 @@
 package gowin32
 
 import (
-	"github.com/winlabs/gowin32/wrappers"
+	"github.com/gorpher/gowin32/wrappers"
 
 	"syscall"
 )
@@ -35,7 +35,7 @@ var (
 	LanguageUserDefault   = Language(wrappers.LANG_USER_DEFAULT)
 )
 
-type Locale   uint32
+type Locale uint32
 
 var (
 	LocaleSystemDefault     = Locale(wrappers.LOCALE_SYSTEM_DEFAULT)
