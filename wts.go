@@ -17,9 +17,10 @@
 package gowin32
 
 import (
-	"github.com/gorpher/gowin32/wrappers"
-
+	"context"
+	"errors"
 	"fmt"
+	"github.com/gorpher/gowin32/wrappers"
 	"net"
 	"syscall"
 	"time"
@@ -447,7 +448,7 @@ func (wts *WTSServer) querySessionInformationAsBool(sessionID uint, infoClass ui
 	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
 
 	if bytesReturned != 1 {
-		return false, buferSizeError(1, bytesReturned)
+		return false, bufferSizeError(1, bytesReturned)
 	}
 
 	return *(*byte)(unsafe.Pointer(buffer)) != 0, nil
@@ -475,7 +476,7 @@ func (wts *WTSServer) querySessionInformationAsUint16(sessionID uint, infoClass 
 	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
 
 	if bytesReturned != 2 {
-		return 0, buferSizeError(2, bytesReturned)
+		return 0, bufferSizeError(2, bytesReturned)
 	}
 	return *(*uint16)(unsafe.Pointer(buffer)), nil
 }
@@ -490,12 +491,81 @@ func (wts *WTSServer) querySessionInformationAsUint32(sessionID uint, infoClass 
 	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
 
 	if bytesReturned != 4 {
-		return 0, buferSizeError(4, bytesReturned)
+		return 0, bufferSizeError(4, bytesReturned)
 	}
 	return *(*uint32)(unsafe.Pointer(buffer)), nil
 }
 
-func buferSizeError(excpected, returned uint32) error {
+func (wts *WTSServer) WTSVirtualChannelWrite(sessionID uint32, channelName string, buf []byte) error {
+	virtualChannelHandle := wrappers.WTSVirtualChannelOpenEx(sessionID, channelName, 0)
+	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
+	var byteWrote uint64
+	var length = uint64(len(buf))
+	return wrappers.WTSVirtualChannelWrite(virtualChannelHandle, &buf[0], length, &byteWrote)
+}
+
+func (wts *WTSServer) WTSVirtualChannelRead(sessionID uint32, channelName string, buf []byte, pBytesRead *uint32) error {
+	virtualChannelHandle := wrappers.WTSVirtualChannelOpenEx(sessionID, channelName, 0)
+	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
+	return wrappers.WTSVirtualChannelRead(virtualChannelHandle, 6000, &buf[0], uint32(len(buf)), pBytesRead)
+}
+func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName string, writeChan chan []byte, readChan chan []byte) error {
+	var sessionID uint32
+	err := wrappers.ProcessIdToSessionId(wrappers.GetCurrentProcessId(), &sessionID)
+	if err != nil {
+		return err
+	}
+	virtualChannelHandle := wrappers.WTSVirtualChannelOpenEx(sessionID, channelName, 0)
+	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
+	buf := make([]byte, 65536)
+	var byteReade uint32
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case writeBody := <-writeChan:
+			var byteWrote uint64
+			fmt.Println("sessionID", sessionID, "write", string(writeBody))
+			errv := wrappers.WTSVirtualChannelWrite(virtualChannelHandle, &writeBody[0], uint64(len(writeBody)), &byteWrote)
+			if errv != nil {
+				fmt.Println("从远端获取数据失败：", errv)
+				return nil
+			}
+		default:
+			errv := wrappers.WTSVirtualChannelRead(virtualChannelHandle, 1000, &buf[0], uint32(len(buf)), &byteReade)
+			if errv != nil {
+				if !errors.Is(errv, wrappers.ERROR_IO_INCOMPLETE) {
+					fmt.Printf("%#v\n", errv)
+					return errv
+				}
+			}
+			if byteReade > 0 {
+				respBody := make([]byte, byteReade)
+				copy(respBody, buf[:byteReade])
+				readChan <- respBody
+			}
+		}
+	}
+}
+
+func (wts *WTSServer) WTSVirtualChannelQuery(channelName string, vClass uint32) (string, error) {
+	var sessionID uint32
+	err := wrappers.ProcessIdToSessionId(wrappers.GetCurrentProcessId(), &sessionID)
+	if err != nil {
+		return "", err
+	}
+	virtualChannelHandle := wrappers.WTSVirtualChannelOpenEx(sessionID, channelName, 0)
+	var buffer *uint16
+	var bytesReturned uint32
+	if err := wrappers.WTSVirtualChannelQuery(virtualChannelHandle, vClass, &buffer, &bytesReturned); err != nil {
+		return "", err
+	}
+	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
+	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
+	return LpstrToString(buffer), nil
+}
+
+func bufferSizeError(excpected, returned uint32) error {
 	return fmt.Errorf("Invalid buffer size. Expected: %d returned: %d", excpected, returned)
 }
 

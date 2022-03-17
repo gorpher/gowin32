@@ -84,6 +84,12 @@ const (
 	WTSIsRemoteSession    = 29
 )
 
+// WTS_VIRTUAL_CLASS enumeration
+const (
+	WTSVirtualClientData = 0
+	WTSVirtualFileHandle = 1
+)
+
 type WTSINFO struct {
 	State                   uint32
 	SessionId               uint32
@@ -169,6 +175,11 @@ var (
 	procWTSQuerySessionInformation = modwtsapi32.NewProc("WTSQuerySessionInformationW")
 	procWTSQueryUserToken          = modwtsapi32.NewProc("WTSQueryUserToken")
 	procWTSEnumerateProcessesEx    = modwtsapi32.NewProc("WTSEnumerateProcessesExW")
+	procWTSVirtualChannelOpenEx    = modwtsapi32.NewProc("WTSVirtualChannelOpenEx")
+	procWTSVirtualChannelWrite     = modwtsapi32.NewProc("WTSVirtualChannelWrite")
+	procWTSVirtualChannelRead      = modwtsapi32.NewProc("WTSVirtualChannelRead")
+	procWTSVirtualChannelQuery     = modwtsapi32.NewProc("WTSVirtualChannelQuery")
+	procWTSVirtualChannelClose     = modwtsapi32.NewProc("WTSVirtualChannelClose")
 )
 
 func WTSEnumerateProcessesEX(handle syscall.Handle, level *uint32, sessionId uint32, pProcessInfo **WTS_PROCESS_INFO_EX, count *uint32) error {
@@ -189,6 +200,7 @@ func WTSEnumerateProcessesEX(handle syscall.Handle, level *uint32, sessionId uin
 	}
 	return nil
 }
+
 func WTSEnumerateProcesses(handle syscall.Handle, reserved *uint32, sessionId uint32, pProcessInfo **WTS_PROCESS_INFO, count *uint32) error {
 	r1, _, e1 := syscall.Syscall6(procWTSEnumerateProcessesEx.Addr(),
 		5,
@@ -207,6 +219,7 @@ func WTSEnumerateProcesses(handle syscall.Handle, reserved *uint32, sessionId ui
 	}
 	return nil
 }
+
 func WTSCloseServer(handle syscall.Handle) {
 	syscall.Syscall6(procWTSCloseServer.Addr(), 1, uintptr(handle), 0, 0, 0, 0, 0)
 }
@@ -287,6 +300,73 @@ func WTSQueryUserToken(sessionId uint32, handle *syscall.Handle) error {
 		uintptr(unsafe.Pointer(handle)),
 		0)
 
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func WTSVirtualChannelOpenEx(sessionID uint32, channelName string, flag uint32) syscall.Handle {
+	r1, _, _ := syscall.Syscall6(procWTSVirtualChannelOpenEx.Addr(), 3, uintptr(sessionID), AStrPtr(channelName), uintptr(flag), 0, 0, 0)
+	return syscall.Handle(r1)
+}
+
+func AStrPtr(str string) uintptr {
+	var buf = make([]byte, len(str)+1)
+	copy(buf, str)
+	return uintptr(unsafe.Pointer(&buf[0])) //nolint
+
+}
+
+func WTSVirtualChannelWrite(hChannelHandle syscall.Handle, buffer *byte, length uint64, pBytesWritten *uint64) error {
+	r1, _, e1 := syscall.Syscall6(procWTSVirtualChannelWrite.Addr(), 4, uintptr(hChannelHandle),
+		uintptr(unsafe.Pointer(buffer)), uintptr(length), uintptr(unsafe.Pointer(pBytesWritten)),
+		0, 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func WTSVirtualChannelRead(hChannelHandle syscall.Handle, timeout uint64, buffer *byte, size uint32, pBytesRead *uint32) error {
+	r1, _, e1 := syscall.Syscall6(procWTSVirtualChannelRead.Addr(), 5,
+		uintptr(hChannelHandle),
+		uintptr(timeout),
+		uintptr(unsafe.Pointer(buffer)),
+		uintptr(size),
+		uintptr(unsafe.Pointer(pBytesRead)),
+		0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func WTSVirtualChannelClose(hChannelHandle syscall.Handle) {
+	syscall.Syscall(procWTSVirtualChannelClose.Addr(), 1, uintptr(hChannelHandle), 0, 0)
+}
+
+func WTSVirtualChannelQuery(hChannelHandle syscall.Handle, vclass uint32, buffer **uint16, pBytesRead *uint32) error {
+	r1, _, e1 := syscall.Syscall6(procWTSVirtualChannelQuery.Addr(), 4,
+		uintptr(hChannelHandle),
+		uintptr(vclass),
+		uintptr(unsafe.Pointer(buffer)),
+		uintptr(unsafe.Pointer(pBytesRead)),
+		0,
+		0,
+	)
 	if r1 == 0 {
 		if e1 != ERROR_SUCCESS {
 			return e1
