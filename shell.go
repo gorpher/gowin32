@@ -212,7 +212,7 @@ func GetKnownFolderPath(folder KnownFolder) (string, error) {
 func ShellDelete(fileSpec string) error {
 	return wrappers.SHFileOperation(&wrappers.SHFILEOPSTRUCT{
 		Func:  wrappers.FO_DELETE,
-		From:  MakeDoubleNullTerminatedLpstr(fileSpec),
+		From:  Lpcwstr(fileSpec),
 		Flags: wrappers.FOF_NO_UI,
 	})
 }
@@ -220,8 +220,8 @@ func ShellDelete(fileSpec string) error {
 func ShellCopy(source string, destination string) error {
 	return wrappers.SHFileOperation(&wrappers.SHFILEOPSTRUCT{
 		Func:  wrappers.FO_COPY,
-		From:  MakeDoubleNullTerminatedLpstr(source),
-		To:    MakeDoubleNullTerminatedLpstr(destination),
+		From:  Lpcwstr(source),
+		To:    Lpcwstr(destination),
 		Flags: wrappers.FOF_NO_UI,
 	})
 }

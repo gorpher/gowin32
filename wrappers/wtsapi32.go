@@ -311,15 +311,25 @@ func WTSQueryUserToken(sessionId uint32, handle *syscall.Handle) error {
 }
 
 func WTSVirtualChannelOpenEx(sessionID uint32, channelName string, flag uint32) syscall.Handle {
-	r1, _, _ := syscall.Syscall6(procWTSVirtualChannelOpenEx.Addr(), 3, uintptr(sessionID), AStrPtr(channelName), uintptr(flag), 0, 0, 0)
+	r1, _, _ := syscall.Syscall6(procWTSVirtualChannelOpenEx.Addr(), 3, uintptr(sessionID), Lpstr(channelName), uintptr(flag), 0, 0, 0)
 	return syscall.Handle(r1)
 }
 
-func AStrPtr(str string) uintptr {
+// Lpstr  golang string to  c  lpstr Type
+func Lpstr(str string) uintptr {
 	var buf = make([]byte, len(str)+1)
 	copy(buf, str)
 	return uintptr(unsafe.Pointer(&buf[0])) //nolint
+}
 
+// Lpcwstr  golang string to  c  lpcwstr Type
+func Lpcwstr(items ...string) *uint16 {
+	var chars []uint16
+	for _, s := range items {
+		chars = append(chars, syscall.StringToUTF16(s)...)
+	}
+	chars = append(chars, 0)
+	return &chars[0]
 }
 
 func WTSVirtualChannelWrite(hChannelHandle syscall.Handle, buffer *byte, length uint64, pBytesWritten *uint64) error {

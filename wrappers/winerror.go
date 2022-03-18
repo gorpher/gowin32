@@ -771,6 +771,81 @@ const (
 	ERROR_APP_HANG                                                syscall.Errno = 1298
 )
 
+///////////////////////////////////////////////////
+//                                               //
+//             Winnet32 Error codes              //
+//                                               //
+//                 2100 to 2999                  //
+//                                               //
+// The range 2100 through 2999 is reserved for   //
+// network status codes. See lmerr.h for a       //
+// complete listing                              //
+///////////////////////////////////////////////////
+const (
+	ERROR_CONNECTED_OTHER_PASSWORD         syscall.Errno = 2108
+	ERROR_CONNECTED_OTHER_PASSWORD_DEFAULT syscall.Errno = 2109
+	ERROR_BAD_USERNAME                     syscall.Errno = 2202
+	ERROR_NOT_CONNECTED                    syscall.Errno = 2250
+	ERROR_OPEN_FILES                       syscall.Errno = 2401
+	ERROR_ACTIVE_CONNECTIONS               syscall.Errno = 2402
+	ERROR_DEVICE_IN_USE                    syscall.Errno = 2404
+)
+
+///////////////////////////////////////////////////
+//                                               //
+//           Win32 Spooler Error codes           //
+//                                               //
+//                 3000 to 3049                  //
+///////////////////////////////////////////////////
+
+const (
+	ERROR_UNKNOWN_PRINT_MONITOR syscall.Errno = 3000
+
+	ERROR_PRINTER_DRIVER_IN_USE syscall.Errno = 3001
+
+	ERROR_SPOOL_FILE_NOT_FOUND syscall.Errno = 3002
+
+	ERROR_SPL_NO_STARTDOC syscall.Errno = 3003
+
+	ERROR_SPL_NO_ADDJOB syscall.Errno = 3004
+
+	ERROR_PRINT_PROCESSOR_ALREADY_INSTALLED syscall.Errno = 3005
+
+	ERROR_PRINT_MONITOR_ALREADY_INSTALLED syscall.Errno = 3006
+
+	ERROR_INVALID_PRINT_MONITOR syscall.Errno = 3007
+
+	ERROR_PRINT_MONITOR_IN_USE syscall.Errno = 3008
+
+	ERROR_PRINTER_HAS_JOBS_QUEUED syscall.Errno = 3009
+
+	ERROR_SUCCESS_REBOOT_REQUIRED syscall.Errno = 3010
+
+	ERROR_SUCCESS_RESTART_REQUIRED syscall.Errno = 3011
+
+	ERROR_PRINTER_NOT_FOUND syscall.Errno = 3012
+
+	ERROR_PRINTER_DRIVER_WARNED syscall.Errno = 3013
+
+	ERROR_PRINTER_DRIVER_BLOCKED syscall.Errno = 3014
+
+	ERROR_PRINTER_DRIVER_PACKAGE_IN_USE syscall.Errno = 3015
+
+	ERROR_CORE_DRIVER_PACKAGE_NOT_FOUND syscall.Errno = 3016
+
+	ERROR_FAIL_REBOOT_REQUIRED syscall.Errno = 3017
+
+	ERROR_FAIL_REBOOT_INITIATED syscall.Errno = 3018
+
+	ERROR_PRINTER_DRIVER_DOWNLOAD_NEEDED syscall.Errno = 3019
+
+	ERROR_PRINT_JOB_RESTART_REQUIRED syscall.Errno = 3020
+
+	ERROR_INVALID_PRINTER_DRIVER_MANIFEST syscall.Errno = 3021
+
+	ERROR_PRINTER_NOT_SHAREABLE syscall.Errno = 3022
+)
+
 const (
 	ERROR_INVALID_LABEL                syscall.Errno = 1299
 	ERROR_NOT_ALL_ASSIGNED             syscall.Errno = 1300

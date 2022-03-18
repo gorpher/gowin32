@@ -52,11 +52,19 @@ func LpstrToString(lpstr *uint16) string {
 	return syscall.UTF16ToString(buf)
 }
 
-func MakeDoubleNullTerminatedLpstr(items ...string) *uint16 {
-	chars := []uint16{}
+// Lpcwstr  golang string to  c  lpcwstr Type
+func Lpcwstr(items ...string) *uint16 {
+	var chars []uint16
 	for _, s := range items {
 		chars = append(chars, syscall.StringToUTF16(s)...)
 	}
 	chars = append(chars, 0)
 	return &chars[0]
+}
+
+// Lpstr  golang string to  c  lpstr Type
+func Lpstr(str string) uintptr {
+	var buf = make([]byte, len(str)+1)
+	copy(buf, str)
+	return uintptr(unsafe.Pointer(&buf[0])) //nolint
 }
