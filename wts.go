@@ -272,7 +272,7 @@ func (wts *WTSServer) QuerySessionClientAddress(sessionID uint) (net.IP, error) 
 	}
 	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
 
-	// MS doc: The IP address is offset by two bytes from the start of the Address member of the WTS_CLIENT_ADDRESS structure.
+	// MS doc: The SmbIP address is offset by two bytes from the start of the Address member of the WTS_CLIENT_ADDRESS structure.
 	// https://msdn.microsoft.com/en-us/library/aa383861%28v=vs.85%29.aspx
 	a := *(*wrappers.WTS_CLIENT_ADDRESS)(unsafe.Pointer(buffer))
 	return clientAddressToIP(a.AddressFamily, a.Address[2:])
@@ -509,7 +509,7 @@ func (wts *WTSServer) WTSVirtualChannelRead(sessionID uint32, channelName string
 	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
 	return wrappers.WTSVirtualChannelRead(virtualChannelHandle, 6000, &buf[0], uint32(len(buf)), pBytesRead)
 }
-func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName string, writeChan chan []byte, readChan chan []byte) error {
+func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName string, writeChan <-chan []byte, readChan chan<- []byte) error {
 	var sessionID uint32
 	err := wrappers.ProcessIdToSessionId(wrappers.GetCurrentProcessId(), &sessionID)
 	if err != nil {
@@ -525,17 +525,16 @@ func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName str
 			return nil
 		case writeBody := <-writeChan:
 			var byteWrote uint64
-			fmt.Println("sessionID", sessionID, "write", string(writeBody))
-			errv := wrappers.WTSVirtualChannelWrite(virtualChannelHandle, &writeBody[0], uint64(len(writeBody)), &byteWrote)
-			if errv != nil {
-				fmt.Println("从远端获取数据失败：", errv)
-				return nil
+			if len(writeBody) > 0 {
+				errv := wrappers.WTSVirtualChannelWrite(virtualChannelHandle, &writeBody[0], uint64(len(writeBody)), &byteWrote)
+				if errv != nil {
+					return errv
+				}
 			}
 		default:
 			errv := wrappers.WTSVirtualChannelRead(virtualChannelHandle, 1000, &buf[0], uint32(len(buf)), &byteReade)
 			if errv != nil {
 				if !errors.Is(errv, wrappers.ERROR_IO_INCOMPLETE) {
-					fmt.Printf("%#v\n", errv)
 					return errv
 				}
 			}
