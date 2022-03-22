@@ -146,22 +146,22 @@ type WTS_PROCESS_INFO struct {
 	SessionId   uint32
 	ProcessId   uint32
 	ProcessName *uint16
-	UserSid     uint32
+	UserSid     uintptr
 }
 
 type WTS_PROCESS_INFO_EX struct {
 	SessionId          uint32
 	ProcessId          uint32
 	ProcessName        *uint16
-	UserSid            uint32
+	UserSid            uintptr
 	NumberOfThreads    uint32
 	HandleCount        uint32
 	PagefileUsage      uint32
 	PeakPagefileUsage  uint32
 	WorkingSetSize     uint32
 	PeakWorkingSetSize uint32
-	UserTime           uint32 //LARGE_INTEGER
-	KernelTime         uint32
+	UserTime           uint64 //LARGE_INTEGER
+	KernelTime         uint64
 }
 
 var (

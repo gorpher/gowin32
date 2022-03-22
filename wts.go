@@ -155,7 +155,6 @@ type WTSPROCESSInfo struct {
 	SessionId         uint
 	ProcessId         uint
 	ProcessName       string
-	UserSid           uint
 	NumberOfThreads   int64
 	HandleCount       int64
 	PagefileUsage     int64 // 虚拟内存
@@ -389,12 +388,12 @@ func (wts *WTSServer) QuerySessionProcessEx(sessionID uint) ([]WTSPROCESSInfo, e
 
 	si := processInfo
 	result := make([]WTSPROCESSInfo, count)
+
 	for i := uint32(0); i < count; i++ {
 		result[i] = WTSPROCESSInfo{
 			SessionId:         uint(si.SessionId),
 			ProcessId:         uint(si.ProcessId),
 			ProcessName:       LpstrToString(si.ProcessName),
-			UserSid:           uint(si.UserSid),
 			NumberOfThreads:   int64(si.NumberOfThreads),
 			HandleCount:       int64(si.HandleCount),
 			PagefileUsage:     int64(si.PagefileUsage),
@@ -423,7 +422,6 @@ func (wts *WTSServer) QuerySessionProcess(sessionID uint) ([]WTSPROCESSInfo, err
 		result[i] = WTSPROCESSInfo{SessionId: uint(si.SessionId),
 			ProcessId:   uint(si.ProcessId),
 			ProcessName: LpstrToString(si.ProcessName),
-			UserSid:     uint(si.UserSid),
 		}
 		si = (*wrappers.WTS_PROCESS_INFO)(unsafe.Pointer(uintptr(unsafe.Pointer(si)) + unsafe.Sizeof(*si)))
 	}
