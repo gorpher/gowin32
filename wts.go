@@ -154,6 +154,7 @@ type WTSSessionInfo struct {
 type WTSPROCESSInfo struct {
 	SessionId         uint
 	ProcessId         uint
+	UserSid           uint
 	ProcessName       string
 	NumberOfThreads   int64
 	HandleCount       int64
@@ -393,6 +394,7 @@ func (wts *WTSServer) QuerySessionProcessEx(sessionID uint) ([]WTSPROCESSInfo, e
 		result[i] = WTSPROCESSInfo{
 			SessionId:         uint(si.SessionId),
 			ProcessId:         uint(si.ProcessId),
+			UserSid:           uint(si.UserSid),
 			ProcessName:       LpstrToString(si.ProcessName),
 			NumberOfThreads:   int64(si.NumberOfThreads),
 			HandleCount:       int64(si.HandleCount),

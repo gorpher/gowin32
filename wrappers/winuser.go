@@ -254,7 +254,25 @@ var (
 	procSendNotifyMessageW        = moduser32.NewProc("SendNotifyMessageW")
 	procSetThreadDesktop          = moduser32.NewProc("SetThreadDesktop")
 	procSwitchDesktop             = moduser32.NewProc("SwitchDesktop")
+	procMessageBoxW               = moduser32.NewProc("MessageBoxW")
+	procGetIconInfo               = moduser32.NewProc("GetIconInfo")
+	procCreateIconFromResourceEx  = moduser32.NewProc("CreateIconFromResourceEx")
+	procPrivateExtractIconsW      = moduser32.NewProc("PrivateExtractIconsW")
 )
+
+func MessageBox(desc, title string) error {
+	d, _ := syscall.UTF16PtrFromString(desc)
+	t, _ := syscall.UTF16PtrFromString(title)
+	r1, _, e1 := procMessageBoxW.Call(0, (uintptr)(unsafe.Pointer(d)), (uintptr)(unsafe.Pointer(t)), 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
 
 func BlockInput(blockIt bool) error {
 	r1, _, e1 := syscall.Syscall(procBlockInput.Addr(), 1, boolToUintptr(blockIt), 0, 0)
@@ -570,4 +588,54 @@ func SwitchDesktop(desktop syscall.Handle) error {
 func GetShellWindow() syscall.Handle {
 	r1, _, _ := syscall.Syscall(procGetShellWindow.Addr(), 0, 0, 0, 0)
 	return syscall.Handle(r1)
+}
+
+//PrivateExtractIcons https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-privateextracticonsw
+func PrivateExtractIcons(szFileName string, nIconIndex, cxIcon, cyIcon uint32,
+	phicon *syscall.Handle, piconid *uint32, nIcons, flags uint32) error {
+	r1, _, e1 := syscall.Syscall9(procPrivateExtractIconsW.Addr(), 8,
+		uintptr(unsafe.Pointer(Lpcwstr(szFileName))),
+		uintptr(nIconIndex),
+		uintptr(cxIcon),
+		uintptr(cyIcon),
+		uintptr(unsafe.Pointer(phicon)),
+		uintptr(unsafe.Pointer(piconid)),
+		uintptr(nIcons),
+		uintptr(flags),
+		0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func GetIconInfo(icon syscall.Handle, pinfo uintptr) error {
+	r1, _, e1 := syscall.Syscall(procGetIconInfo.Addr(), 2, uintptr(icon), uintptr(pinfo), 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+// CreateIconFromResourceEx fIcon contains 1 or 0
+func CreateIconFromResourceEx(pbIconBits *byte, cbIconBits int, fIcon uint32, dwVersion int, cxDesired int32, cyDesired int32, flags uint32) error {
+	r1, _, e1 := syscall.Syscall9(procCreateIconFromResourceEx.Addr(),
+		7, uintptr(unsafe.Pointer(pbIconBits)), uintptr(cbIconBits), uintptr(fIcon), uintptr(dwVersion),
+		uintptr(cxDesired), uintptr(cyDesired), uintptr(flags), 0, 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
 }

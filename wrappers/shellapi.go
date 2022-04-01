@@ -48,6 +48,15 @@ const (
 	FOF_NO_UI                 = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NOCONFIRMMKDIR
 )
 
+const (
+	SHGFI_SYSICONINDEX      = 0x4000
+	SHGFI_ICON              = 0x000000100
+	SHGFI_LARGEICON         = 0x000000000
+	SHGFI_USEFILEATTRIBUTES = 0x10
+	SHIL_JUMBO              = 0x4
+	SHIL_EXTRALARGE         = 0x2
+)
+
 type SHFILEOPSTRUCT struct {
 	Hwnd                 syscall.Handle
 	Func                 uint32
@@ -59,11 +68,21 @@ type SHFILEOPSTRUCT struct {
 	ProgressTitle        *uint16
 }
 
+type SHFILEINFO struct {
+	HIcon         syscall.Handle
+	IIcon         int32
+	DwAttributes  uint32
+	SzDisplayName [MAX_PATH]uint16
+	SzTypeName    [80]uint16
+}
+
 var (
 	modshell32 = syscall.NewLazyDLL("shell32.dll")
 
 	procCommandLineToArgvW = modshell32.NewProc("CommandLineToArgvW")
 	procSHFileOperationW   = modshell32.NewProc("SHFileOperationW")
+	procExtractIconExW     = modshell32.NewProc("ExtractIconExW")
+	procSHGetFileInfoW     = modshell32.NewProc("SHGetFileInfoW")
 )
 
 func CommandLineToArgvW(cmdLine *uint16, numArgs *int32) (**uint16, error) {
@@ -87,6 +106,36 @@ func SHFileOperation(fileOp *SHFILEOPSTRUCT) error {
 	r1, _, _ := syscall.Syscall(procSHFileOperationW.Addr(), 1, uintptr(unsafe.Pointer(fileOp)), 0, 0)
 	if err := syscall.Errno(r1); err != ERROR_SUCCESS {
 		return err
+	}
+	return nil
+}
+
+func ExtractIconExW(lpszFile *uint16, nIconIndex int, phiconLarge *syscall.Handle, phiconSmall *syscall.Handle, nIcons int) error {
+	r1, _, e1 := syscall.Syscall6(procExtractIconExW.Addr(),
+		5, uintptr(unsafe.Pointer(lpszFile)),
+		uintptr(nIconIndex),
+		uintptr(unsafe.Pointer(phiconLarge)),
+		uintptr(unsafe.Pointer(phiconSmall)),
+		uintptr(nIcons), 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func SHGetFileInfoW(pszPath *uint16, dwFileAttributes uint32, psfi uintptr, cbFileInfo uint32, uFlags uint32) error {
+	r1, _, e1 := syscall.Syscall6(procSHGetFileInfoW.Addr(),
+		5, uintptr(unsafe.Pointer(pszPath)), uintptr(dwFileAttributes), uintptr(psfi), uintptr(cbFileInfo), uintptr(uFlags), 0)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
 	}
 	return nil
 }

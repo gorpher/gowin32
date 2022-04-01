@@ -17,8 +17,11 @@
 package gowin32
 
 import (
+	"errors"
+	"github.com/gorpher/gowin32/win"
 	"github.com/gorpher/gowin32/wrappers"
-
+	"image"
+	"image/color"
 	"syscall"
 	"unsafe"
 )
@@ -224,4 +227,123 @@ func ShellCopy(source string, destination string) error {
 		To:    Lpcwstr(destination),
 		Flags: wrappers.FOF_NO_UI,
 	})
+}
+
+func ExtractIconToImageByExt(filename string) (image.Image, error) {
+	var shFile wrappers.SHFILEINFO
+	err := wrappers.SHGetFileInfoW(
+		Lpcwstr(filename),
+		0,
+		uintptr(unsafe.Pointer(&shFile)),
+		uint32(unsafe.Sizeof(shFile)),
+		wrappers.SHGFI_ICON|wrappers.SHGFI_USEFILEATTRIBUTES)
+	if err != nil {
+		return nil, err
+	}
+	defer win.DestroyIcon(win.HICON(shFile.HIcon))
+	return hICONTOImage(shFile.HIcon)
+}
+
+func ExtractIconToImage(filename string) (image.Image, error) {
+	large := []syscall.Handle{0}
+	err := wrappers.ExtractIconExW(Lpcwstr(filename), 0, &large[0], nil, 1)
+	if err != nil {
+		return nil, err
+	}
+	defer win.DestroyIcon(win.HICON(large[0]))
+	return hICONTOImage(large[0])
+}
+
+// ExtractPrivateExtractIcons 提取exe高清图标
+func ExtractPrivateExtractIcons(filename string, w, h uint32) (image.Image, error) {
+	large := []syscall.Handle{0}
+	var piconId uint32 = 0
+	err := wrappers.PrivateExtractIcons(filename, 0, w, h, &large[0], &piconId, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer win.DestroyIcon(win.HICON(large[0]))
+	return hICONTOImage(large[0])
+}
+
+func hICONTOImage(handle syscall.Handle) (image.Image, error) {
+	var iconInfo win.ICONINFO
+	err := wrappers.GetIconInfo(handle, uintptr(unsafe.Pointer(&iconInfo)))
+	if err != nil {
+		return nil, err
+	}
+
+	w := int32(iconInfo.XHotspot * 2)
+	h := int32(iconInfo.YHotspot * 2)
+
+	var bitmapInfo win.BITMAPINFOHEADER
+	bitmapInfo.BiSize = uint32(unsafe.Sizeof(bitmapInfo))
+	bitmapInfo.BiWidth = w
+	bitmapInfo.BiHeight = -h
+	bitmapInfo.BiPlanes = 1
+	bitmapInfo.BiBitCount = 32
+	bitmapInfo.BiCompression = win.BI_RGB
+	bitmapInfo.BiSizeImage = uint32(w * h * 4)
+	bitmapInfo.BiXPelsPerMeter = 0
+	bitmapInfo.BiYPelsPerMeter = 0
+	bitmapInfo.BiClrUsed = 0
+	bitmapInfo.BiClrImportant = 0
+	dc := win.GetDC(0)
+	hdc := win.CreateCompatibleDC(dc)
+	ok := win.ReleaseDC(0, hdc)
+	if ok {
+		return nil, errors.New("ReleaseDC Error")
+	}
+	defer win.DeleteDC(hdc)
+	var bits unsafe.Pointer
+	winBitmap := win.CreateDIBSection(hdc, &bitmapInfo, win.DIB_RGB_COLORS, &bits, 0, 0)
+	defer win.DeleteObject(win.HGDIOBJ(winBitmap))
+
+	var pixels = (*[1 << 30]byte)(bits)[0:bitmapInfo.BiSizeImage]
+	win.SelectObject(hdc, win.HGDIOBJ(winBitmap))
+	success := win.DrawIconEx(hdc, 0, 0, win.HICON(handle), w, h, 0, 0, win.DI_NORMAL)
+	if ok {
+		return nil, errors.New("DrawIcon Error")
+	}
+	hasAlpha := false
+	rgba := image.NewRGBA(image.Rectangle{
+		Min: image.Point{
+			X: 0,
+			Y: 0,
+		},
+		Max: image.Point{
+			X: int(w),
+			Y: int(h),
+		},
+	})
+	for y := int32(0); y < h; y++ {
+		for x := int32(0); x < w; x++ {
+			if pixels[((y*w+x)*4)+3] > 0 {
+				hasAlpha = true
+			}
+
+			rgba.SetRGBA(int(x), int(y), color.RGBA{
+				A: pixels[((y*w+x)*4)+3],
+				R: pixels[((y*w+x)*4)+2],
+				G: pixels[((y*w+x)*4)+1],
+				B: pixels[((y*w+x)*4)+0],
+			})
+		}
+	}
+	if hasAlpha {
+		return rgba, nil
+	}
+	success = win.DrawIconEx(hdc, 0, 0, win.HICON(syscall.Handle(handle)), w, h, 0, 0, win.DI_MASK)
+	if success {
+		for y := int32(0); y < h; y++ {
+			for x := int32(0); x < w; x++ {
+				tmp := rgba.RGBAAt(int(x), int(y))
+				if (pixels[((y*w+x)*4)+2] | pixels[((y*w+x)*4)+1] | pixels[((y*w+x)*4)+0]) == 0 {
+					tmp.A = 0xFF
+					rgba.SetRGBA(int(x), int(y), tmp)
+				}
+			}
+		}
+	}
+	return rgba, nil
 }
