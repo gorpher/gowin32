@@ -17,6 +17,7 @@
 package wrappers
 
 import (
+	"golang.org/x/sys/windows"
 	"syscall"
 	"unsafe"
 )
@@ -397,6 +398,8 @@ var (
 	procSetFileSecurityW             = modadvapi32.NewProc("SetFileSecurityW")
 	procSetSecurityDescriptorDacl    = modadvapi32.NewProc("SetSecurityDescriptorDacl")
 	procSetSecurityDescriptorOwner   = modadvapi32.NewProc("SetSecurityDescriptorOwner")
+	procDuplicateTokenEx             = modadvapi32.NewProc("DuplicateTokenEx")
+	procCreateProcessAsUserW         = modadvapi32.NewProc("CreateProcessAsUserW")
 )
 
 func SetLastError(errCode syscall.Errno) {
@@ -2130,6 +2133,55 @@ func SetSecurityDescriptorOwner(securityDescriptor *byte, owner *SID, ownerDefau
 		uintptr(unsafe.Pointer(securityDescriptor)),
 		uintptr(unsafe.Pointer(owner)),
 		boolToUintptr(ownerDefaulted))
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func DuplicateToken(userToken syscall.Handle, newToken *syscall.Handle) error {
+	r1, _, e1 := procDuplicateTokenEx.Call(
+		uintptr(userToken),
+		0, 0,
+		uintptr(SecurityImpersonation),
+		uintptr(TokenPrimary),
+		uintptr(unsafe.Pointer(newToken)))
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func CreateProcessAsUser(userToken, envInfo syscall.Handle, startupInfo *windows.StartupInfo, processInfo *windows.ProcessInformation, appPath, cmdLine, workDir string) error {
+	creationFlags := CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_CONSOLE
+	var (
+		commandLine uintptr = 0
+		workingDir  uintptr = 0
+	)
+	if len(cmdLine) > 0 {
+		commandLine = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(cmdLine)))
+	}
+	if len(workDir) > 0 {
+		workingDir = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(workDir)))
+	}
+	r1, _, e1 := procCreateProcessAsUserW.Call(
+		uintptr(userToken),
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(appPath))),
+		commandLine, 0, 0, 0,
+		uintptr(creationFlags),
+		uintptr(envInfo),
+		workingDir,
+		uintptr(unsafe.Pointer(&startupInfo)),
+		uintptr(unsafe.Pointer(&processInfo)),
+	)
 	if r1 == 0 {
 		if e1 != ERROR_SUCCESS {
 			return e1

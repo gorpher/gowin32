@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorpher/gowin32/wrappers"
+	"golang.org/x/sys/windows"
 	"net"
 	"syscall"
 	"time"
@@ -204,7 +205,18 @@ func (wts *WTSServer) EnumerateSessions() ([]WTSSessionInfo, error) {
 	}
 	return result, nil
 }
-
+func (wts *WTSServer) CurrentSessionInfo() (WTSSessionInfo, error) {
+	sessions, err := wts.EnumerateSessions()
+	if err != nil {
+		return WTSSessionInfo{}, err
+	}
+	for _, session := range sessions {
+		if session.State == wrappers.WTSActive {
+			return session, nil
+		}
+	}
+	return WTSSessionInfo{}, errors.New("get currentSessionInfo failed")
+}
 func (wts *WTSServer) LogoffSession(sessionID uint, wait bool) error {
 	return wrappers.WTSLogoffSession(wts.handle, uint32(sessionID), wait)
 }
@@ -564,6 +576,33 @@ func (wts *WTSServer) WTSVirtualChannelQuery(channelName string, vClass uint32) 
 	return LpstrToString(buffer), nil
 }
 
+func (wts *WTSServer) CreateProcessAsUserBySessionID(sessionID uint, appPath, workDir string) error {
+	var userToken syscall.Handle
+	err := wrappers.WTSQueryUserToken(uint32(sessionID), &userToken)
+	if err != nil {
+		return fmt.Errorf("WTSQueryUserToken Faild : %s", err)
+	}
+	var newToken syscall.Handle
+	err = wrappers.DuplicateToken(userToken, &newToken)
+	if err != nil {
+		return fmt.Errorf("DuplicateToken Faild : %s", err)
+	}
+	var envInfo syscall.Handle
+	err = wrappers.CreateEnvironmentBlock(&envInfo, newToken)
+	if err != nil {
+		return fmt.Errorf("CreateEnvironmentBlock Faild : %s", err)
+	}
+	var startupInfo = windows.StartupInfo{
+		ShowWindow: wrappers.SW_SHOWMAXIMIZED,
+		Desktop:    windows.StringToUTF16Ptr("winsta0\\default"),
+	}
+	var processInfo = windows.ProcessInformation{}
+	err = wrappers.CreateProcessAsUser(newToken, envInfo, &startupInfo, &processInfo, appPath, "", workDir)
+	if err != nil {
+		return fmt.Errorf("CreateProcessAsUser Faild : %s", err)
+	}
+	return nil
+}
 func bufferSizeError(excpected, returned uint32) error {
 	return fmt.Errorf("Invalid buffer size. Expected: %d returned: %d", excpected, returned)
 }
