@@ -17,6 +17,7 @@
 package wrappers
 
 import (
+	"fmt"
 	"syscall"
 	"unsafe"
 )
@@ -167,19 +168,20 @@ type WTS_PROCESS_INFO_EX struct {
 var (
 	modwtsapi32 = syscall.NewLazyDLL("wtsapi32.dll")
 
-	procWTSCloseServer             = modwtsapi32.NewProc("WTSCloseServer")
-	procWTSEnumerateSessions       = modwtsapi32.NewProc("WTSEnumerateSessionsW")
-	procWTSFreeMemory              = modwtsapi32.NewProc("WTSFreeMemory")
-	procWTSOpenServer              = modwtsapi32.NewProc("WTSOpenServerW")
-	procWTSLogoffSession           = modwtsapi32.NewProc("WTSLogoffSession")
-	procWTSQuerySessionInformation = modwtsapi32.NewProc("WTSQuerySessionInformationW")
-	procWTSQueryUserToken          = modwtsapi32.NewProc("WTSQueryUserToken")
-	procWTSEnumerateProcessesEx    = modwtsapi32.NewProc("WTSEnumerateProcessesExW")
-	procWTSVirtualChannelOpenEx    = modwtsapi32.NewProc("WTSVirtualChannelOpenEx")
-	procWTSVirtualChannelWrite     = modwtsapi32.NewProc("WTSVirtualChannelWrite")
-	procWTSVirtualChannelRead      = modwtsapi32.NewProc("WTSVirtualChannelRead")
-	procWTSVirtualChannelQuery     = modwtsapi32.NewProc("WTSVirtualChannelQuery")
-	procWTSVirtualChannelClose     = modwtsapi32.NewProc("WTSVirtualChannelClose")
+	procWTSCloseServer                 = modwtsapi32.NewProc("WTSCloseServer")
+	procWTSEnumerateSessions           = modwtsapi32.NewProc("WTSEnumerateSessionsW")
+	procWTSFreeMemory                  = modwtsapi32.NewProc("WTSFreeMemory")
+	procWTSOpenServer                  = modwtsapi32.NewProc("WTSOpenServerW")
+	procWTSLogoffSession               = modwtsapi32.NewProc("WTSLogoffSession")
+	procWTSQuerySessionInformation     = modwtsapi32.NewProc("WTSQuerySessionInformationW")
+	procWTSQueryUserToken              = modwtsapi32.NewProc("WTSQueryUserToken")
+	procWTSEnumerateProcessesEx        = modwtsapi32.NewProc("WTSEnumerateProcessesExW")
+	procWTSVirtualChannelOpenEx        = modwtsapi32.NewProc("WTSVirtualChannelOpenEx")
+	procWTSVirtualChannelWrite         = modwtsapi32.NewProc("WTSVirtualChannelWrite")
+	procWTSVirtualChannelRead          = modwtsapi32.NewProc("WTSVirtualChannelRead")
+	procWTSVirtualChannelQuery         = modwtsapi32.NewProc("WTSVirtualChannelQuery")
+	procWTSVirtualChannelClose         = modwtsapi32.NewProc("WTSVirtualChannelClose")
+	procWTSRegisterSessionNotification = modwtsapi32.NewProc("WTSRegisterSessionNotification")
 )
 
 func WTSEnumerateProcessesEX(handle syscall.Handle, level *uint32, sessionId uint32, pProcessInfo **WTS_PROCESS_INFO_EX, count *uint32) error {
@@ -315,23 +317,6 @@ func WTSVirtualChannelOpenEx(sessionID uint32, channelName string, flag uint32) 
 	return syscall.Handle(r1)
 }
 
-// Lpstr  golang string to  c  lpstr Type
-func Lpstr(str string) uintptr {
-	var buf = make([]byte, len(str)+1)
-	copy(buf, str)
-	return uintptr(unsafe.Pointer(&buf[0])) //nolint
-}
-
-// Lpcwstr  golang string to  c  lpcwstr Type
-func Lpcwstr(items ...string) *uint16 {
-	var chars []uint16
-	for _, s := range items {
-		chars = append(chars, syscall.StringToUTF16(s)...)
-	}
-	chars = append(chars, 0)
-	return &chars[0]
-}
-
 func WTSVirtualChannelWrite(hChannelHandle syscall.Handle, buffer *byte, length uint64, pBytesWritten *uint64) error {
 	r1, _, e1 := syscall.Syscall6(procWTSVirtualChannelWrite.Addr(), 4, uintptr(hChannelHandle),
 		uintptr(unsafe.Pointer(buffer)), uintptr(length), uintptr(unsafe.Pointer(pBytesWritten)),
@@ -377,6 +362,31 @@ func WTSVirtualChannelQuery(hChannelHandle syscall.Handle, vclass uint32, buffer
 		0,
 		0,
 	)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+//type LphandlerFunctionEx func(dwControl DWORD, dwEventType DWORD, lpEventData LPVOID, lpContext LPVOID) int32
+
+const (
+	NOTIFY_FOR_THIS_SESSION DWORD = 0
+	NOTIFY_FOR_ALL_SESSIONS DWORD = 1
+)
+
+//type WindowProc func(hWnd HANDLE, msg uintptr, wParam uintptr, lParam uintptr) uintptr
+
+func WTSRegisterSessionNotification() error {
+	callback := syscall.NewCallback(func(dwControl uint32, dwEventType uint32, lpEventData uintptr, lpContext uintptr) (ret uintptr) {
+		fmt.Printf("from callback: %v\n", dwControl)
+		return uintptr(uint32(0))
+	})
+	r1, _, e1 := syscall.SyscallN(procWTSRegisterSessionNotification.Addr(), callback, uintptr(NOTIFY_FOR_THIS_SESSION))
 	if r1 == 0 {
 		if e1 != ERROR_SUCCESS {
 			return e1

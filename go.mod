@@ -1,10 +1,11 @@
 module github.com/gorpher/gowin32
 
-go 1.17
+go 1.18
 
 require (
 	github.com/gorpher/gone v1.3.8
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
+	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135
 )
 
 require (

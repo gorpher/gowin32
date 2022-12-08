@@ -67,7 +67,7 @@ type PROCESS_BASIC_INFORMATION struct {
 }
 
 const (
-	ProcessBasicInformation = 0
+	//ProcessBasicInformation = 0
 	ProcessWow64Information = 26
 )
 

@@ -205,6 +205,7 @@ func (wts *WTSServer) EnumerateSessions() ([]WTSSessionInfo, error) {
 	}
 	return result, nil
 }
+
 func (wts *WTSServer) CurrentSessionInfo() (WTSSessionInfo, error) {
 	sessions, err := wts.EnumerateSessions()
 	if err != nil {
@@ -217,6 +218,7 @@ func (wts *WTSServer) CurrentSessionInfo() (WTSSessionInfo, error) {
 	}
 	return WTSSessionInfo{}, errors.New("get currentSessionInfo failed")
 }
+
 func (wts *WTSServer) LogoffSession(sessionID uint, wait bool) error {
 	return wrappers.WTSLogoffSession(wts.handle, uint32(sessionID), wait)
 }
@@ -284,7 +286,7 @@ func (wts *WTSServer) QuerySessionClientAddress(sessionID uint) (net.IP, error) 
 	}
 	defer wrappers.WTSFreeMemory((*byte)(unsafe.Pointer(buffer)))
 
-	// MS doc: The SmbIP address is offset by two bytes from the start of the Address member of the WTS_CLIENT_ADDRESS structure.
+	// MS doc: The SmbIP address is offset by two bytes from the start of the Addr member of the WTS_CLIENT_ADDRESS structure.
 	// https://msdn.microsoft.com/en-us/library/aa383861%28v=vs.85%29.aspx
 	a := *(*wrappers.WTS_CLIENT_ADDRESS)(unsafe.Pointer(buffer))
 	return clientAddressToIP(a.AddressFamily, a.Address[2:])
@@ -344,7 +346,7 @@ func (wts *WTSServer) QuerySessionClientInfo(sessionID uint) (WTSClientInfo, err
 	}, nil
 }
 
-func (wts *WTSServer) QuerySessionSesionInfo(sessionID uint) (WTSInfo, error) {
+func (wts *WTSServer) QuerySessionSessionInfo(sessionID uint) (WTSInfo, error) {
 	var buffer *uint16
 	var bytesReturned uint32
 
@@ -521,12 +523,17 @@ func (wts *WTSServer) WTSVirtualChannelRead(sessionID uint32, channelName string
 	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
 	return wrappers.WTSVirtualChannelRead(virtualChannelHandle, 6000, &buf[0], uint32(len(buf)), pBytesRead)
 }
+
 func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName string, writeChan <-chan []byte, readChan chan<- []byte) error {
 	var sessionID uint32
 	err := wrappers.ProcessIdToSessionId(wrappers.GetCurrentProcessId(), &sessionID)
 	if err != nil {
-		return err
+		return fmt.Errorf("ProcessIdToSessionId: %s", err)
 	}
+	return wts.OpenWTSVirtualChannelWithSessionID(ctx, sessionID, channelName, writeChan, readChan)
+}
+
+func (wts *WTSServer) OpenWTSVirtualChannelWithSessionID(ctx context.Context, sessionID uint32, channelName string, writeChan <-chan []byte, readChan chan<- []byte) error {
 	virtualChannelHandle := wrappers.WTSVirtualChannelOpenEx(sessionID, channelName, 0)
 	defer wrappers.WTSVirtualChannelClose(virtualChannelHandle)
 	buf := make([]byte, 65536)
@@ -540,14 +547,14 @@ func (wts *WTSServer) OpenWTSVirtualChannel(ctx context.Context, channelName str
 			if len(writeBody) > 0 {
 				errv := wrappers.WTSVirtualChannelWrite(virtualChannelHandle, &writeBody[0], uint64(len(writeBody)), &byteWrote)
 				if errv != nil {
-					return errv
+					return fmt.Errorf("WTSVirtualChannelWrite len=%d : %s ", len(writeBody), errv)
 				}
 			}
 		default:
 			errv := wrappers.WTSVirtualChannelRead(virtualChannelHandle, 1000, &buf[0], uint32(len(buf)), &byteReade)
 			if errv != nil {
 				if !errors.Is(errv, wrappers.ERROR_IO_INCOMPLETE) {
-					return errv
+					return fmt.Errorf("WTSVirtualChannelRead: %s", errv)
 				}
 			}
 			if byteReade > 0 {
@@ -576,9 +583,9 @@ func (wts *WTSServer) WTSVirtualChannelQuery(channelName string, vClass uint32) 
 	return LpstrToString(buffer), nil
 }
 
-func (wts *WTSServer) CreateProcessAsUserBySessionID(sessionID uint, appPath, workDir string) error {
+func (wts *WTSServer) CreateProcessAsUserBySessionID(sessionID uint32, appPath, workDir string) error {
 	var userToken syscall.Handle
-	err := wrappers.WTSQueryUserToken(uint32(sessionID), &userToken)
+	err := wrappers.WTSQueryUserToken(sessionID, &userToken)
 	if err != nil {
 		return fmt.Errorf("WTSQueryUserToken Faild : %s", err)
 	}
@@ -603,6 +610,7 @@ func (wts *WTSServer) CreateProcessAsUserBySessionID(sessionID uint, appPath, wo
 	}
 	return nil
 }
+
 func bufferSizeError(excpected, returned uint32) error {
 	return fmt.Errorf("Invalid buffer size. Expected: %d returned: %d", excpected, returned)
 }
