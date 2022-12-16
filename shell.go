@@ -262,6 +262,9 @@ func ExtractPrivateExtractIcons(filename string, w, h uint32) (image.Image, erro
 	if err != nil {
 		return nil, err
 	}
+	if large == nil {
+		return nil, errors.New("can't extract  icon")
+	}
 	defer win.DestroyIcon(win.HICON(large[0]))
 	return hICONTOImage(large[0])
 }
