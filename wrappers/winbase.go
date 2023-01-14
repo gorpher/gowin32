@@ -400,6 +400,7 @@ var (
 	procSetSecurityDescriptorOwner   = modadvapi32.NewProc("SetSecurityDescriptorOwner")
 	procDuplicateTokenEx             = modadvapi32.NewProc("DuplicateTokenEx")
 	procCreateProcessAsUserW         = modadvapi32.NewProc("CreateProcessAsUserW")
+	procCreateProcessWithLogonW      = modadvapi32.NewProc("CreateProcessWithLogonW")
 )
 
 func SetLastError(errCode syscall.Errno) {
@@ -2177,6 +2178,41 @@ func CreateProcessAsUser(userToken, envInfo syscall.Handle, startupInfo *windows
 		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(appPath))),
 		commandLine, 0, 0, 0,
 		uintptr(creationFlags),
+		uintptr(envInfo),
+		workingDir,
+		uintptr(unsafe.Pointer(&startupInfo)),
+		uintptr(unsafe.Pointer(&processInfo)),
+	)
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func CreateProcessWithLogon(username, domain, password, cmdLine, workDir string,
+	envInfo syscall.Handle, startupInfo *windows.StartupInfo, processInfo *windows.ProcessInformation) error {
+	var (
+		commandLine uintptr = 0
+		workingDir  uintptr = 0
+	)
+	if len(cmdLine) > 0 {
+		commandLine = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(cmdLine)))
+	}
+	if len(workDir) > 0 {
+		workingDir = uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(workDir)))
+	}
+	r1, _, e1 := procCreateProcessWithLogonW.Call(
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(username))),
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(domain))),
+		uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(password))),
+		uintptr(int32(0)),
+		uintptr(0),
+		commandLine,
+		CREATE_DEFAULT_ERROR_MODE,
 		uintptr(envInfo),
 		workingDir,
 		uintptr(unsafe.Pointer(&startupInfo)),

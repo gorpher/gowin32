@@ -18,6 +18,7 @@ package gowin32
 
 import (
 	"github.com/gorpher/gowin32/wrappers"
+	"golang.org/x/sys/windows"
 
 	"syscall"
 	"time"
@@ -264,4 +265,14 @@ func GetProcessCommandLine(pid uint) (string, error) {
 		return "", NewWindowsError("ReadProcessMemory", err)
 	}
 	return syscall.UTF16ToString(commandLine), nil
+}
+
+func CreateProcessWithLogon(username, domain, password, cmdLine, workDir string) error {
+	var startupInfo = windows.StartupInfo{
+		ShowWindow: wrappers.SW_SHOWMAXIMIZED,
+		Desktop:    windows.StringToUTF16Ptr("winsta0\\default"),
+	}
+	var processInfo = windows.ProcessInformation{}
+	return wrappers.CreateProcessWithLogon(username, domain, password, cmdLine, workDir,
+		0, &startupInfo, &processInfo)
 }
