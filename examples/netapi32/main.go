@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gorpher/gowin32"
+	"os"
 )
 
 func main() {
@@ -30,4 +31,36 @@ func main() {
 	//for _, info := range mInformation {
 	//	fmt.Println("machine", info)
 	//}
+
+	shareDir := "C:\\user_files\\test111"
+	shareName := "test111"
+	username := "administrator"
+
+	shareList := gowin32.NetShareEnum()
+	for _, info := range shareList {
+		if info.Path == shareDir || info.Netname == shareName {
+			fmt.Printf("共享 %s: %s 已存在\n", shareName, shareDir)
+			return
+		}
+	}
+	exists, err := gowin32.FileExists(shareDir)
+	if err != nil {
+		panic(err)
+	}
+	if !exists {
+		err = os.MkdirAll(shareDir, os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = gowin32.AddNetShare(username, shareDir, shareName)
+	if err != nil {
+		panic(err)
+	}
+
+	err = gowin32.DelNetShare(shareDir)
+	if err != nil {
+		panic(err)
+	}
 }

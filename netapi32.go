@@ -2,6 +2,7 @@ package gowin32
 
 import (
 	"github.com/gorpher/gowin32/wrappers"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -203,4 +204,118 @@ func NetQueryDisplayGroupInformation() []wrappers.NetDisplayGroup {
 		}
 	}
 	return result
+}
+
+func NetShareEnum() []wrappers.ShareInfo {
+	level := uint32(2)
+	entriesread := uint32(0)
+	totalentries := uint32(0)
+	resumeHandle := uint32(0)
+	var buffer uintptr
+	var result []wrappers.ShareInfo
+	defer wrappers.NetApiBufferFree(buffer)
+	for {
+		res := wrappers.NetShareEnum("", level,
+			&buffer,
+			uint32(0xFFFFFFFF),
+			&entriesread, &totalentries, &resumeHandle)
+		if res == 0 {
+			pos := buffer
+			for i := uint32(0); i < entriesread; i++ {
+				encodedUserRecord := (*wrappers.SHARE_INFO_2)(unsafe.Pointer(pos))
+				if encodedUserRecord == nil {
+					break
+				}
+				result = append(result, encodedUserRecord.ShareInfo())
+				pos = pos + unsafe.Sizeof(*encodedUserRecord)
+			}
+		}
+		if res != wrappers.NET_API_STATUS(wrappers.ERROR_MORE_DATA) {
+			break
+		}
+	}
+	return result
+}
+
+func AddNetShare(username, shareDir, shareName string) error {
+	var (
+		err      error
+		adminSid SecurityID
+		userSid  SecurityID
+	)
+	si502 := wrappers.SHARE_INFO_502{
+		Netname:      Lpcwstr(shareName),      //共享名
+		Type:         wrappers.STYPE_DISKTREE, //资源类型 这里是磁盘
+		Path:         Lpcwstr(shareDir),       //文件夹路径
+		Permissions:  wrappers.ACCESS_ALL,     //访问权限
+		Passwd:       nil,                     //访问密码
+		Max_uses:     0,                       //最大用户连接
+		Current_uses: 0,                       //当前连接用户
+		Reserved:     0,                       //保留字段
+
+	}
+
+	userSid, _, _, err = GetLocalAccountByName(username)
+	if err != nil {
+		return err
+	}
+	var permissions = []PermissionEntry{
+		{
+			TrusteeType: TrusteeUser,
+			Trustee:     userSid,
+			Permissions: FileAllAccess,
+			AccessMode:  AccessGrant,
+		},
+	}
+
+	if strings.ToLower(username) != "administrator" {
+		adminSid, _, _, err = GetLocalAccountByName("administrator")
+		if err != nil {
+			return err
+		}
+		permissions = append(permissions, PermissionEntry{
+			TrusteeType: TrusteeUser,
+			Trustee:     adminSid,
+			Permissions: FileAllAccess,
+			AccessMode:  AccessGrant,
+		})
+	}
+
+	var explicitAccess []wrappers.EXPLICIT_ACCESS
+	for _, entry := range permissions {
+		explicitAccess = append(explicitAccess, wrappers.EXPLICIT_ACCESS{
+			AccessPermissions: uint32(entry.Permissions),
+			AccessMode:        int32(entry.AccessMode),
+			Inheritance:       wrappers.NO_INHERITANCE,
+			Trustee: wrappers.TRUSTEE{
+				MultipleTrustee:          nil,
+				MultipleTrusteeOperation: wrappers.NO_MULTIPLE_TRUSTEE,
+				TrusteeForm:              wrappers.TRUSTEE_IS_SID,
+				TrusteeType:              int32(entry.TrusteeType),
+				Name:                     (*uint16)(unsafe.Pointer(entry.Trustee.sid)),
+			},
+		})
+	}
+
+	var acl *wrappers.ACL
+	if err := wrappers.SetEntriesInAcl(uint32(len(explicitAccess)), &explicitAccess[0], nil, &acl); err != nil {
+		return NewWindowsError("SetEntriesInAcl", err)
+	}
+	defer wrappers.LocalFree(syscall.Handle(unsafe.Pointer(acl)))
+
+	sd := make([]byte, wrappers.SECURITY_DESCRIPTOR_MIN_LENGTH)
+	if err := wrappers.InitializeSecurityDescriptor(&sd[0], wrappers.SECURITY_DESCRIPTOR_REVISION); err != nil {
+		return NewWindowsError("InitializeSecurityDescriptor", err)
+	}
+	if err := wrappers.SetSecurityDescriptorDacl(&sd[0], true, acl, false); err != nil {
+		return NewWindowsError("SetSecurityDescriptorDacl", err)
+	}
+	si502.Security_descriptor = &sd[0]
+	var paraerr uint16
+	return wrappers.NetShareAdd502("", si502, &paraerr)
+}
+
+// DelNetShare shareName 共享名称
+func DelNetShare(shareName string) error {
+	return wrappers.NetShareDel("", shareName, 0)
 }

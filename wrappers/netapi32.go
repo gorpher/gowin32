@@ -14,7 +14,89 @@ var (
 	procNetQueryDisplayInformation = modnetapi32.NewProc("NetQueryDisplayInformation")
 	procNetUserGetGroups           = modnetapi32.NewProc("NetUserGetGroups")
 	procNetGroupGetUsers           = modnetapi32.NewProc("NetGroupGetUsers")
+	//sys  NetShareAdd(serverName *uint16, level uint32, buf *byte, parmErr *uint16) (neterr error) = modnetapi32.NetShareAdd
+	//sys  NetShareDel(serverName *uint16, netName *uint16, reserved uint32) (neterr error) = modnetapi32.NetShareDel
+	procNetShareAdd  = modnetapi32.NewProc("NetShareAdd")
+	procNetShareDel  = modnetapi32.NewProc("NetShareDel")
+	procNetShareEnum = modnetapi32.NewProc("NetShareEnum")
 )
+
+const (
+	ACCESS_NONE   = 0
+	ACCESS_READ   = 0x01
+	ACCESS_WRITE  = 0x02
+	ACCESS_CREATE = 0x04
+	ACCESS_EXEC   = 0x08
+	ACCESS_DELETE = 0x10
+	ACCESS_ATRIB  = 0x20
+	ACCESS_PERM   = 0x40
+
+	ACCESS_GROUP = 0x8000
+
+	STYPE_DISKTREE = 0x00
+	ACCESS_ALL     = ACCESS_READ | ACCESS_WRITE | ACCESS_CREATE | ACCESS_EXEC | ACCESS_DELETE | ACCESS_ATRIB | ACCESS_PERM
+)
+
+type SHARE_INFO_2 struct {
+	Netname     *uint16
+	Type        uint32
+	Remark      *uint16
+	Permissions uint32
+	MaxUses     uint32
+	CurrentUses uint32
+	Path        *uint16
+	Passwd      *uint16
+}
+
+func (a SHARE_INFO_2) ShareInfo() ShareInfo {
+	return ShareInfo{
+		Netname:     LpstrToString(a.Netname),
+		Remark:      LpstrToString(a.Remark),
+		Path:        LpstrToString(a.Path),
+		Passwd:      LpstrToString(a.Passwd),
+		Type:        int(a.Type),
+		Permissions: int(a.Permissions),
+		MaxUses:     int(a.MaxUses),
+		CurrentUses: int(a.CurrentUses),
+	}
+}
+
+type ShareInfo struct {
+	Netname     string
+	Remark      string
+	Path        string
+	Passwd      string
+	Type        int
+	Permissions int
+	MaxUses     int
+	CurrentUses int
+}
+type SHARE_INFO_502 struct {
+	Netname             *uint16
+	Type                uint32
+	Remark              *uint16
+	Permissions         uint32
+	Max_uses            uint32
+	Current_uses        uint32
+	Path                *uint16
+	Passwd              *uint16
+	Reserved            uint32
+	Security_descriptor *byte
+}
+
+type SHARE_INFO_503 struct {
+	Netname             *uint16
+	Type                uint32
+	Remark              *uint16
+	Permissions         uint32
+	Max_uses            uint32
+	Current_uses        uint32
+	Path                *uint16
+	Passwd              *uint16
+	Servername          *uint16
+	Reserved            uint32
+	Security_descriptor *byte
+}
 
 type USER_INFO_3 struct {
 	Name             LPWSTR
@@ -82,7 +164,6 @@ type UserRecord struct {
 
 func (a USER_INFO_3) UserRecord() UserRecord {
 	name := LpstrToString(a.Name)
-	Lpcwstr()
 	sid, _, _, _ := syscall.LookupSID("", name)
 	sidString, _ := sid.String()
 	return UserRecord{
@@ -428,4 +509,55 @@ type NetDisplayMachine struct {
 	MachineComment string
 	MachineFlags   uint32
 	MachineUserId  uint32
+}
+
+//NetShareAdd https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netshareadd
+func NetShareAdd(serverName string, level uint32, buf *byte, parmErr *uint16) (neterr error) {
+	sname := Lpcwstr(serverName)
+	r0, _, _ := procNetShareAdd.Call(
+		uintptr(unsafe.Pointer(sname)),
+		uintptr(level),
+		uintptr(unsafe.Pointer(buf)),
+		uintptr(unsafe.Pointer(parmErr)))
+	if r0 != 0 {
+		neterr = syscall.Errno(r0)
+	}
+	return
+}
+
+func NetShareAdd2(serverName string, share SHARE_INFO_2, parmErr *uint16) error {
+	return NetShareAdd(serverName, 2, (*byte)(unsafe.Pointer(&share)), parmErr)
+}
+
+func NetShareAdd502(serverName string, share SHARE_INFO_502, parmErr *uint16) error {
+	return NetShareAdd(serverName, 502, (*byte)(unsafe.Pointer(&share)), parmErr)
+}
+
+func NetShareAdd503(serverName string, share SHARE_INFO_503, parmErr *uint16) (neterr error) {
+	return NetShareAdd(serverName, 503, (*byte)(unsafe.Pointer(&share)), parmErr)
+}
+
+//NetShareDel https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netsharedel
+func NetShareDel(serverName string, netName string, reserved uint32) (neterr error) {
+	sname := Lpcwstr(serverName)
+	nname := Lpcwstr(netName)
+	r0, _, _ := procNetShareDel.Call(uintptr(unsafe.Pointer(sname)), uintptr(unsafe.Pointer(nname)), uintptr(reserved))
+	if r0 != 0 {
+		neterr = syscall.Errno(r0)
+	}
+	return
+}
+
+func NetShareEnum(servername string, level uint32, buf *uintptr,
+	prefmaxlen uint32, entriesread *uint32, totalentries *uint32, resume_handle *uint32) NET_API_STATUS {
+	sname := Lpcwstr(servername)
+	r1, _, _ := procNetShareEnum.Call(
+		uintptr(unsafe.Pointer(sname)),
+		uintptr(level),
+		uintptr(unsafe.Pointer(buf)),
+		uintptr(prefmaxlen),
+		uintptr(unsafe.Pointer(entriesread)),
+		uintptr(unsafe.Pointer(totalentries)),
+		uintptr(unsafe.Pointer(resume_handle)))
+	return NET_API_STATUS(r1)
 }
