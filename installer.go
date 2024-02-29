@@ -252,6 +252,16 @@ func GetInstalledComponentPath(productCode string, componentID string) (string, 
 	return syscall.UTF16ToString(buf), InstallState(state)
 }
 
+// GetShortcutTargetPath 获取快捷方式目标文件路径
+func GetShortcutTargetPath(lnk string) string {
+	productCode, componentID := wrappers.MsiGetShortcutTarget(lnk)
+	if productCode != "" && componentID != "" {
+		path, _ := GetInstalledComponentPath(productCode, componentID)
+		return path
+	}
+	return ""
+}
+
 func GetInstalledProductProperty(productCode string, property InstallProperty) (string, error) {
 	var size uint32
 	err := wrappers.MsiGetProductInfo(

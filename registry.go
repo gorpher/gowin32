@@ -123,6 +123,10 @@ func (self *RegKey) GetSubKeys() ([]string, error) {
 		return nil, NewWindowsError("RegQueryInfoKey", err)
 	}
 	subKeys := make([]string, 0, subKeyCount)
+	maxBuffer *= 2
+	if maxBuffer > 2048 {
+		maxBuffer = 2048
+	}
 	buf := make([]uint16, maxBuffer)
 	var i uint32
 	for i = 0; i < subKeyCount; i++ {

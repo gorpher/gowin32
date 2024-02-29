@@ -156,6 +156,7 @@ var (
 	procMsiQueryProductStateW   = modmsi.NewProc("MsiQueryProductStateW")
 	procMsiSetInternalUI        = modmsi.NewProc("MsiSetInternalUI")
 	procMsiVerifyPackageW       = modmsi.NewProc("MsiVerifyPackageW")
+	procMsiGetShortcutTargetW   = modmsi.NewProc("MsiGetShortcutTargetW")
 )
 
 func MsiCloseHandle(handle uint32) error {
@@ -253,6 +254,21 @@ func MsiGetComponentPath(product *uint16, component *uint16, pathBuf *uint16, cc
 		0,
 		0)
 	return int32(r1)
+}
+
+func MsiGetShortcutTarget(shortcutFile string) (string, string) {
+	var szProductCode = make([]uint16, 40)
+	var szComponentCode = make([]uint16, 40)
+	r1, _, _ := procMsiGetShortcutTargetW.Call(
+		uintptr(unsafe.Pointer(Lpcwstr(shortcutFile))),
+		uintptr(unsafe.Pointer(&szProductCode[0])),
+		uintptr(0),
+		uintptr(unsafe.Pointer(&szComponentCode[0])),
+	)
+	if err := syscall.Errno(r1); err != ERROR_SUCCESS {
+		return "", ""
+	}
+	return LpstrToString(&szProductCode[0]), LpstrToString(&szComponentCode[0])
 }
 
 func MsiGetProductInfo(product *uint16, property *uint16, valueBuf *uint16, cchValueBuf *uint32) error {
