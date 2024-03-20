@@ -10,6 +10,7 @@ var (
 
 	procNetApiBufferFree           = modnetapi32.NewProc("NetApiBufferFree")
 	procNetUserEnum                = modnetapi32.NewProc("NetUserEnum")
+	procNetUserAdd                 = modnetapi32.NewProc("NetUserAdd")
 	procNetGroupEnum               = modnetapi32.NewProc("NetGroupEnum")
 	procNetQueryDisplayInformation = modnetapi32.NewProc("NetQueryDisplayInformation")
 	procNetUserGetGroups           = modnetapi32.NewProc("NetUserGetGroups")
@@ -97,7 +98,24 @@ type SHARE_INFO_503 struct {
 	Reserved            uint32
 	Security_descriptor *byte
 }
-
+type USER_INFO_1 struct {
+	//	LPWSTR usri1_name;
+	//  LPWSTR usri1_password;
+	//  DWORD  usri1_password_age;
+	//  DWORD  usri1_priv;
+	//  LPWSTR usri1_home_dir;
+	//  LPWSTR usri1_comment;
+	//  DWORD  usri1_flags;
+	//  LPWSTR usri1_script_path;
+	Name         LPWSTR
+	Password     LPWSTR
+	Password_age DWORD
+	Priv         DWORD
+	Home_dir     LPWSTR
+	Comment      LPWSTR
+	Flags        DWORD
+	Script_path  LPWSTR
+}
 type USER_INFO_3 struct {
 	Name             LPWSTR
 	Password         LPWSTR
@@ -331,21 +349,29 @@ func NetUserGetGroups(servername *LPCWSTR, username *LPCWSTR, level DWORD, bufpt
 }
 
 // NetGroupEnum
-//NET_API_STATUS NET_API_FUNCTION NetGroupEnum(
-//  [in]      LPCWSTR    servername,
-//  [in]      DWORD      level,
-//  [out]     LPBYTE     *bufptr,
-//  [in]      DWORD      prefmaxlen,
-//  [out]     LPDWORD    entriesread,
-//  [out]     LPDWORD    totalentries,
-//  [in, out] PDWORD_PTR resume_handle
-//);
+// NET_API_STATUS NET_API_FUNCTION NetGroupEnum(
+//
+//	[in]      LPCWSTR    servername,
+//	[in]      DWORD      level,
+//	[out]     LPBYTE     *bufptr,
+//	[in]      DWORD      prefmaxlen,
+//	[out]     LPDWORD    entriesread,
+//	[out]     LPDWORD    totalentries,
+//	[in, out] PDWORD_PTR resume_handle
+//
+// );
 func NetGroupEnum(servername *uint16, level uint32, bufptr *uintptr, prefmaxlen uint32,
 	entriesread *uint32, totalentries *uint32, resume_handle *uint64) NET_API_STATUS {
 	r1, _, _ := syscall.SyscallN(procNetGroupEnum.Addr(),
 		uintptr(unsafe.Pointer(servername)), uintptr(level), uintptr(unsafe.Pointer(bufptr)),
 		uintptr(prefmaxlen), uintptr(unsafe.Pointer(entriesread)), uintptr(unsafe.Pointer(totalentries)),
 		uintptr(unsafe.Pointer(resume_handle)))
+	return NET_API_STATUS(r1)
+}
+
+func NetUserAdd(servername *uint16, level uint32, bufptr *byte, parmErr *LPDWORD) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetUserAdd.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(level), uintptr(unsafe.Pointer(bufptr)), uintptr(unsafe.Pointer(parmErr)))
 	return NET_API_STATUS(r1)
 }
 
@@ -367,16 +393,18 @@ func (g GROUP_INFO_1) GroupInfo1() GroupInfo1 {
 }
 
 // NetGroupGetUsers
-//NET_API_STATUS NET_API_FUNCTION NetGroupGetUsers(
-//  [in]      LPCWSTR    servername,
-//  [in]      LPCWSTR    groupname,
-//  [in]      DWORD      level,
-//  [out]     LPBYTE     *bufptr,
-//  [in]      DWORD      prefmaxlen,
-//  [out]     LPDWORD    entriesread,
-//  [out]     LPDWORD    totalentries,
-//  [in, out] PDWORD_PTR ResumeHandle
-//);
+// NET_API_STATUS NET_API_FUNCTION NetGroupGetUsers(
+//
+//	[in]      LPCWSTR    servername,
+//	[in]      LPCWSTR    groupname,
+//	[in]      DWORD      level,
+//	[out]     LPBYTE     *bufptr,
+//	[in]      DWORD      prefmaxlen,
+//	[out]     LPDWORD    entriesread,
+//	[out]     LPDWORD    totalentries,
+//	[in, out] PDWORD_PTR ResumeHandle
+//
+// );
 func NetGroupGetUsers(servername *uint16, groupname *uint16, level uint32, bufptr *uintptr, prefmaxlen uint32,
 	entriesread *uint32, totalentries *uint32, resume_handle *uint32) NET_API_STATUS {
 	r1, _, _ := procNetGroupGetUsers.Call(uintptr(unsafe.Pointer(servername)),
@@ -404,16 +432,18 @@ func (g GROUP_USERS_INFO_0) GroupUserInfo() GroupUserInfo {
 	}
 }
 
-//NetQueryDisplayInformation
-//NET_API_STATUS NET_API_FUNCTION NetQueryDisplayInformation(
-//  [in]  LPCWSTR ServerName,
-//  [in]  DWORD   Level,
-//  [in]  DWORD   Index,
-//  [in]  DWORD   EntriesRequested,
-//  [in]  DWORD   PreferredMaximumLength,
-//  [out] LPDWORD ReturnedEntryCount,
-//  [out] PVOID   *SortedBuffer
-//);
+// NetQueryDisplayInformation
+// NET_API_STATUS NET_API_FUNCTION NetQueryDisplayInformation(
+//
+//	[in]  LPCWSTR ServerName,
+//	[in]  DWORD   Level,
+//	[in]  DWORD   Index,
+//	[in]  DWORD   EntriesRequested,
+//	[in]  DWORD   PreferredMaximumLength,
+//	[out] LPDWORD ReturnedEntryCount,
+//	[out] PVOID   *SortedBuffer
+//
+// );
 func NetQueryDisplayInformation(servername *uint16, level uint32, index uint32,
 	entriesRequested uint32, preferredMaximumLength uint32, returnedEntryCount *uint32, sortedBuffer *uintptr) NET_API_STATUS {
 	r0, _, _ := syscall.SyscallN(procNetQueryDisplayInformation.Addr(),
@@ -511,7 +541,7 @@ type NetDisplayMachine struct {
 	MachineUserId  uint32
 }
 
-//NetShareAdd https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netshareadd
+// NetShareAdd https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netshareadd
 func NetShareAdd(serverName string, level uint32, buf *byte, parmErr *uint16) (neterr error) {
 	sname := Lpcwstr(serverName)
 	r0, _, _ := procNetShareAdd.Call(
@@ -537,7 +567,7 @@ func NetShareAdd503(serverName string, share SHARE_INFO_503, parmErr *uint16) (n
 	return NetShareAdd(serverName, 503, (*byte)(unsafe.Pointer(&share)), parmErr)
 }
 
-//NetShareDel https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netsharedel
+// NetShareDel https://learn.microsoft.com/zh-cn/windows/win32/api/lmshare/nf-lmshare-netsharedel
 func NetShareDel(serverName string, netName string, reserved uint32) (neterr error) {
 	sname := Lpcwstr(serverName)
 	nname := Lpcwstr(netName)

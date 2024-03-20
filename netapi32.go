@@ -39,6 +39,22 @@ func NetUserEnum() []wrappers.UserRecord {
 	return result
 }
 
+func NetUserAdd(server, username, password string) error {
+	servername := wrappers.Lpcwstr(server)
+	info1 := wrappers.USER_INFO_1{
+		Name:         wrappers.Lpcwstr(username),
+		Password:     wrappers.Lpcwstr(password),
+		Password_age: 0,
+		Priv:         wrappers.USER_PRIV_USER,
+		Flags:        wrappers.UF_PASSWD_NOTREQD | wrappers.UF_DONT_EXPIRE_PASSWD | wrappers.UF_NORMAL_ACCOUNT,
+	}
+	status := wrappers.NetUserAdd(servername, 1, (*byte)(unsafe.Pointer(&info1)), nil)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetUserAdd ", syscall.Errno(status))
+}
+
 func NetGroupGetUsers(groupName string) []wrappers.GroupUserInfo {
 	level := uint32(0)
 
@@ -249,7 +265,7 @@ func AddNetShare(username, shareDir, shareName string) error {
 		Path:         Lpcwstr(shareDir),       //文件夹路径
 		Permissions:  wrappers.ACCESS_ALL,     //访问权限
 		Passwd:       nil,                     //访问密码
-		Max_uses:     0,                       //最大用户连接
+		Max_uses:     65536,                   //最大用户连接
 		Current_uses: 0,                       //当前连接用户
 		Reserved:     0,                       //保留字段
 
