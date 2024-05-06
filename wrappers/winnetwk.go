@@ -59,6 +59,15 @@ type NETRESOURCE struct {
 	LpProvider    *uint16
 }
 
+// WNetAddConnection2W
+// DWORD WNetAddConnection2W(
+//
+//	[in] LPNETRESOURCEW lpNetResource,
+//	[in] LPCWSTR        lpPassword,
+//	[in] LPCWSTR        lpUserName,
+//	[in] DWORD          dwFlags
+//
+// );
 func WNetAddConnection2W(ns *NETRESOURCE, username, password *uint16, flag uint32) error {
 	r1, _, e1 := syscall.Syscall6(procWNetAddConnection2W.Addr(), 4,
 		uintptr(unsafe.Pointer(ns)),

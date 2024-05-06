@@ -39,6 +39,50 @@ func NetUserEnum() []wrappers.UserRecord {
 	return result
 }
 
+func NetGroupAdd(server, name string) error {
+	servername := wrappers.Lpcwstr(server)
+	info1 := wrappers.GROUP_INFO_0{
+		Grpi0Name: wrappers.Lpcwstr(name),
+	}
+	status := wrappers.NetGroupAdd(servername, 1, (*byte)(unsafe.Pointer(&info1)), nil)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetGroupAdd ", syscall.Errno(status))
+}
+
+func NetGroupDel(server, name string) error {
+	status := wrappers.NetGroupDel(wrappers.Lpcwstr(server), wrappers.Lpcwstr(name))
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetGroupDel ", syscall.Errno(status))
+}
+
+func NetGroupAddUser(server, groupName, username string) error {
+	servername := wrappers.Lpcwstr(server)
+	g := wrappers.Lpcwstr(groupName)
+	u := wrappers.Lpcwstr(username)
+
+	status := wrappers.NetGroupAddUser(servername, g, u)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetGroupAddUser ", syscall.Errno(status))
+}
+
+func NetGroupDelUser(server, groupName, username string) error {
+	servername := wrappers.Lpcwstr(server)
+	g := wrappers.Lpcwstr(groupName)
+	u := wrappers.Lpcwstr(username)
+
+	status := wrappers.NetGroupDelUser(servername, g, u)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetGroupDelUser ", syscall.Errno(status))
+}
+
 func NetUserAdd(server, username, password string) error {
 	servername := wrappers.Lpcwstr(server)
 	info1 := wrappers.USER_INFO_1{
@@ -49,6 +93,26 @@ func NetUserAdd(server, username, password string) error {
 		Flags:        wrappers.UF_PASSWD_NOTREQD | wrappers.UF_DONT_EXPIRE_PASSWD | wrappers.UF_NORMAL_ACCOUNT,
 	}
 	status := wrappers.NetUserAdd(servername, 1, (*byte)(unsafe.Pointer(&info1)), nil)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetUserAdd ", syscall.Errno(status))
+}
+
+func NetUserSetGroups(server, username string, groups ...string) error {
+	entries := uint32(len(groups))
+	if entries == 0 {
+		return nil
+	}
+	servername := wrappers.Lpcwstr(server)
+	uname := wrappers.Lpcwstr(username)
+	gps := make([]wrappers.GROUP_INFO_0, entries)
+	for i, group := range groups {
+		gps[i] = wrappers.GROUP_INFO_0{
+			Grpi0Name: wrappers.Lpcwstr(group),
+		}
+	}
+	status := wrappers.NetUserSetGroups(servername, uname, 0, (*byte)(unsafe.Pointer(&gps)), entries)
 	if status == 0 {
 		return nil
 	}
@@ -90,7 +154,7 @@ func NetGroupEnum() []wrappers.GroupInfo1 {
 	level := uint32(0)
 	entriesread := uint32(0)
 	totalentries := uint32(0)
-	resumeHandle := uint64(0)
+	resumeHandle := uint32(0)
 	var buffer uintptr
 	var result []wrappers.GroupInfo1
 	defer wrappers.NetApiBufferFree(buffer)

@@ -12,6 +12,11 @@ var (
 	procNetUserEnum                = modnetapi32.NewProc("NetUserEnum")
 	procNetUserAdd                 = modnetapi32.NewProc("NetUserAdd")
 	procNetGroupEnum               = modnetapi32.NewProc("NetGroupEnum")
+	procNetGroupAdd                = modnetapi32.NewProc("NetGroupAdd")
+	procNetGroupAddUser            = modnetapi32.NewProc("NetGroupAddUser")
+	procNetGroupDel                = modnetapi32.NewProc("NetGroupDel")
+	procNetGroupDelUser            = modnetapi32.NewProc("NetGroupDelUser")
+	procNetUserSetGroups           = modnetapi32.NewProc("NetUserSetGroups")
 	procNetQueryDisplayInformation = modnetapi32.NewProc("NetQueryDisplayInformation")
 	procNetUserGetGroups           = modnetapi32.NewProc("NetUserGetGroups")
 	procNetGroupGetUsers           = modnetapi32.NewProc("NetGroupGetUsers")
@@ -284,7 +289,7 @@ const (
 	FILTER_WORKSTATION_TRUST_ACCOUNT = uint32(0x0010)
 	FILTER_SERVER_TRUST_ACCOUNT      = uint32(0x0020)
 
-	LG_INCLUDE_INDIRECT = (0x0001)
+	LG_INCLUDE_INDIRECT = 0x0001
 
 	// Memory protection constants
 	PAGE_EXECUTE           = 0x10
@@ -348,6 +353,15 @@ func NetUserGetGroups(servername *LPCWSTR, username *LPCWSTR, level DWORD, bufpt
 	return
 }
 
+//GROUP_INFO_0
+//typedef struct _GROUP_INFO_0 {
+//  LPWSTR grpi0_name;
+//} GROUP_INFO_0, *PGROUP_INFO_0, *LPGROUP_INFO_0;
+
+type GROUP_INFO_0 struct {
+	Grpi0Name LPWSTR
+}
+
 // NetGroupEnum
 // NET_API_STATUS NET_API_FUNCTION NetGroupEnum(
 //
@@ -361,7 +375,7 @@ func NetUserGetGroups(servername *LPCWSTR, username *LPCWSTR, level DWORD, bufpt
 //
 // );
 func NetGroupEnum(servername *uint16, level uint32, bufptr *uintptr, prefmaxlen uint32,
-	entriesread *uint32, totalentries *uint32, resume_handle *uint64) NET_API_STATUS {
+	entriesread *uint32, totalentries *uint32, resume_handle *uint32) NET_API_STATUS {
 	r1, _, _ := syscall.SyscallN(procNetGroupEnum.Addr(),
 		uintptr(unsafe.Pointer(servername)), uintptr(level), uintptr(unsafe.Pointer(bufptr)),
 		uintptr(prefmaxlen), uintptr(unsafe.Pointer(entriesread)), uintptr(unsafe.Pointer(totalentries)),
@@ -369,9 +383,90 @@ func NetGroupEnum(servername *uint16, level uint32, bufptr *uintptr, prefmaxlen 
 	return NET_API_STATUS(r1)
 }
 
+// NetGroupAdd
+// NET_API_STATUS NET_API_FUNCTION NetGroupAdd(
+//
+//	[in]  LPCWSTR servername,
+//	[in]  DWORD   level,
+//	[in]  LPBYTE  buf,
+//	[out] LPDWORD parm_err
+//
+// );
+func NetGroupAdd(servername *uint16, level uint32, bufptr *byte, parmErr *LPDWORD) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetGroupAdd.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(level), uintptr(unsafe.Pointer(bufptr)), uintptr(unsafe.Pointer(parmErr)))
+	return NET_API_STATUS(r1)
+}
+
+// NetGroupAddUser
+// NET_API_STATUS NET_API_FUNCTION NetGroupAddUser(
+//
+//	[in] LPCWSTR servername,
+//	[in] LPCWSTR GroupName,
+//	[in] LPCWSTR username
+//
+// );
+func NetGroupAddUser(servername, groupName, username *uint16) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetGroupAddUser.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(unsafe.Pointer(groupName)), uintptr(unsafe.Pointer(username)))
+	return NET_API_STATUS(r1)
+}
+
+// NetGroupDelUser
+// NET_API_STATUS NET_API_FUNCTION NetGroupDelUser(
+//
+//	[in] LPCWSTR servername,
+//	[in] LPCWSTR GroupName,
+//	[in] LPCWSTR Username
+//
+// );
+func NetGroupDelUser(servername, groupName, username *uint16) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetGroupDelUser.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(unsafe.Pointer(groupName)), uintptr(unsafe.Pointer(username)))
+	return NET_API_STATUS(r1)
+}
+
+// NetGroupDel
+// NET_API_STATUS NET_API_FUNCTION NetGroupDel(
+//
+//	[in] LPCWSTR servername,
+//	[in] LPCWSTR groupname
+//
+// );
+func NetGroupDel(servername *uint16, groupname *uint16) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetGroupDel.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(unsafe.Pointer(groupname)))
+	return NET_API_STATUS(r1)
+}
+
+// NetUserAdd
+// NET_API_STATUS NET_API_FUNCTION NetUserAdd(
+//
+//	[in]  LPCWSTR servername,
+//	[in]  DWORD   level,
+//	[in]  LPBYTE  buf,
+//	[out] LPDWORD parm_err
+//
+// );
 func NetUserAdd(servername *uint16, level uint32, bufptr *byte, parmErr *LPDWORD) NET_API_STATUS {
 	r1, _, _ := syscall.SyscallN(procNetUserAdd.Addr(),
 		uintptr(unsafe.Pointer(servername)), uintptr(level), uintptr(unsafe.Pointer(bufptr)), uintptr(unsafe.Pointer(parmErr)))
+	return NET_API_STATUS(r1)
+}
+
+// NetUserSetGroups
+// NET_API_STATUS NET_API_FUNCTION NetUserSetGroups(
+//
+//	[in] LPCWSTR servername,
+//	[in] LPCWSTR username,
+//	[in] DWORD   level,
+//	[in] LPBYTE  buf,
+//	[in] DWORD   num_entries
+//
+// );
+func NetUserSetGroups(servername *uint16, username *uint16, level uint32, bufptr *byte, entries uint32) NET_API_STATUS {
+	r1, _, _ := syscall.SyscallN(procNetUserSetGroups.Addr(),
+		uintptr(unsafe.Pointer(servername)), uintptr(unsafe.Pointer(username)), uintptr(level), uintptr(unsafe.Pointer(bufptr)), uintptr(entries))
 	return NET_API_STATUS(r1)
 }
 
