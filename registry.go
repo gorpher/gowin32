@@ -17,8 +17,8 @@
 package gowin32
 
 import (
+	"github.com/gorpher/gowin32/win"
 	"github.com/gorpher/gowin32/wrappers"
-
 	"syscall"
 	"unsafe"
 )
@@ -420,4 +420,138 @@ func SetRegValueString(root RegRoot, subKey string, valueName string, data strin
 	}
 	defer key.Close()
 	return key.SetValueString(valueName, data)
+}
+
+func DelComputerPolicies(gpKey, ikey string) (err error) {
+	wrappers.CoInitializeEx(nil, 0)
+	var object uintptr
+	wrappers.CoCreateInstance(&wrappers.CLSID_GroupPolicyObject, nil, win.CLSCTX_ALL, &wrappers.IID_IGroupPolicyObject, &object)
+	var hSubKey syscall.Handle
+	var pgo = (*wrappers.IGroupPolicyObject)(unsafe.Pointer(object))
+	err = wrappers.RegCreateKeyEx(wrappers.HKEY_LOCAL_MACHINE,
+		Lpcwstr(gpKey),
+		0,
+		nil,
+		wrappers.REG_OPTION_NON_VOLATILE,
+		wrappers.KEY_ALL_ACCESS|wrappers.KEY_WOW64_64KEY,
+		nil,
+		&hSubKey,
+		nil)
+	if err != nil {
+		return
+	}
+	ikeystr := Lpcwstr(ikey)
+	err = wrappers.RegDeleteValue(hSubKey, ikeystr)
+	if err != nil {
+		return
+	}
+	err = wrappers.RegCloseKey(hSubKey)
+	if err != nil {
+		return
+	}
+	pgo.OpenLocalMachineGPO(wrappers.GPO_OPEN_LOAD_REGISTRY)
+	var ghoKey syscall.Handle
+	var ghoSubKey syscall.Handle
+	pgo.GetRegistryKey(wrappers.GPO_SECTION_MACHINE, &ghoKey)
+	err = wrappers.RegCreateKeyEx(ghoKey,
+		ikeystr,
+		0,
+		nil,
+		wrappers.REG_OPTION_NON_VOLATILE,
+		wrappers.KEY_ALL_ACCESS|wrappers.KEY_WOW64_64KEY,
+		nil,
+		&ghoSubKey,
+		nil)
+	if err != nil {
+		return
+	}
+	err = wrappers.RegDeleteValue(ghoSubKey, ikeystr)
+	if err != nil {
+		return
+	}
+	registryId := wrappers.REGISTRY_EXTENSION_GUID
+
+	pgo.Save(1, 1, &registryId, &wrappers.CLSID_GPESnapIn)
+	pgo.Release()
+	err = wrappers.RegCloseKey(ghoKey)
+	if err != nil {
+		return
+	}
+	err = wrappers.RegCloseKey(ghoSubKey)
+	if err != nil {
+		return
+	}
+	wrappers.CoUninitialize()
+	return err
+}
+
+func SetComputerPolicies(gpKey, ikey string, dwType uint32, valueStr string, valueDword uint32) (err error) {
+	wrappers.CoInitializeEx(nil, 0)
+	var object uintptr
+	wrappers.CoCreateInstance(&wrappers.CLSID_GroupPolicyObject, nil, win.CLSCTX_ALL, &wrappers.IID_IGroupPolicyObject, &object)
+	var pgo = (*wrappers.IGroupPolicyObject)(unsafe.Pointer(object))
+	var hSubKey syscall.Handle
+	err = wrappers.RegCreateKeyEx(wrappers.HKEY_LOCAL_MACHINE,
+		Lpcwstr(gpKey),
+		0,
+		nil,
+		wrappers.REG_OPTION_NON_VOLATILE,
+		wrappers.KEY_ALL_ACCESS|wrappers.KEY_WOW64_64KEY,
+		nil,
+		&hSubKey,
+		nil)
+	if err != nil {
+		return
+	}
+	if dwType == wrappers.REG_DWORD {
+		err = wrappers.RegSetValueEx(hSubKey, Lpcwstr(ikey), 0, wrappers.REG_DWORD, (*byte)(unsafe.Pointer(&valueDword)), uint32(unsafe.Sizeof(&valueDword)))
+	} else {
+		err = wrappers.RegSetValueEx(hSubKey, Lpcwstr(ikey), 0, dwType, (*byte)(unsafe.Pointer(Lpcwstr(valueStr))), uint32(unsafe.Sizeof(&valueDword)))
+	}
+	if err != nil {
+		return
+	}
+	err = wrappers.RegCloseKey(hSubKey)
+	if err != nil {
+		return err
+	}
+	var ghoKey syscall.Handle
+	var ghoSubKey syscall.Handle
+	pgo.OpenLocalMachineGPO(wrappers.GPO_OPEN_LOAD_REGISTRY)
+	pgo.GetRegistryKey(wrappers.GPO_SECTION_MACHINE, &ghoKey)
+
+	err = wrappers.RegCreateKeyEx(ghoKey,
+		Lpcwstr(ikey),
+		0,
+		nil,
+		wrappers.REG_OPTION_NON_VOLATILE,
+		wrappers.KEY_ALL_ACCESS|wrappers.KEY_WOW64_64KEY,
+		nil,
+		&ghoSubKey,
+		nil)
+	if err != nil {
+		return err
+	}
+	if dwType == wrappers.REG_DWORD {
+		err = wrappers.RegSetValueEx(ghoSubKey, Lpcwstr(ikey), 0, wrappers.REG_DWORD, (*byte)(unsafe.Pointer(&valueDword)), uint32(unsafe.Sizeof(&valueDword)))
+	} else {
+		err = wrappers.RegSetValueEx(ghoSubKey, Lpcwstr(ikey), 0, dwType, (*byte)(unsafe.Pointer(Lpcwstr(valueStr))), uint32(unsafe.Sizeof(&valueDword)))
+	}
+	if err != nil {
+		return err
+	}
+	registryId := wrappers.REGISTRY_EXTENSION_GUID
+
+	pgo.Save(1, 1, &registryId, &wrappers.CLSID_GPESnapIn)
+	pgo.Release()
+	err = wrappers.RegCloseKey(ghoKey)
+	if err != nil {
+		return
+	}
+	err = wrappers.RegCloseKey(ghoSubKey)
+	if err != nil {
+		return
+	}
+	wrappers.CoUninitialize()
+	return err
 }

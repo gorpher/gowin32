@@ -65,6 +65,33 @@ type PROCESS_BASIC_INFORMATION struct {
 	UniqueProcessId uintptr
 	Reserved3       uintptr
 }
+type (
+	FILE_DIRECTORY_INFORMATION struct {
+		NextEntryOffset uint32
+		FileIndex       uint32
+		CreationTime    uint64
+		LastAccessTime  uint64
+		LastWriteTime   uint64
+		ChangeTime      uint64
+		EndOfFile       uint64
+		AllocationSize  uint64
+		FileAttributes  uint32
+		FileNameLength  uint32
+		FileName        [1]uint16
+	}
+
+	FILE_NAMES_INFORMATION struct {
+		NextEntryOffset uint32
+		FileIndex       uint32
+		FileNameLength  uint32
+		FileName        [1]uint16
+	}
+
+	IO_STATUS_BLOCK struct {
+		StatusPointer uintptr
+		Information   uintptr
+	}
+)
 
 const (
 	//ProcessBasicInformation = 0
@@ -90,31 +117,39 @@ func NT_ERROR(status uint32) bool {
 var (
 	modntdll = syscall.NewLazyDLL("ntdll.dll")
 
-	procNtQueryInformationProcess = modntdll.NewProc("NtQueryInformationProcess")
-	procRtlFreeUnicodeString      = modntdll.NewProc("RtlFreeUnicodeString")
-	procRtlInitUnicodeString      = modntdll.NewProc("RtlInitUnicodeString")
+	procNtQueryInformationProcess   = modntdll.NewProc("NtQueryInformationProcess")
+	procRtlFreeUnicodeString        = modntdll.NewProc("RtlFreeUnicodeString")
+	procRtlInitUnicodeString        = modntdll.NewProc("RtlInitUnicodeString")
+	procNtSetQuotaInformationFile   = modntdll.NewProc("NtSetQuotaInformationFile")
+	procNtQueryQuotaInformationFile = modntdll.NewProc("NtQueryQuotaInformationFile")
 )
 
-func NtQueryInformationProcess(processHandle syscall.Handle, processInformationClass int32, processInformation *byte, processInformationLength uint32, returnLength *uint32) uint32 {
-	r1, _, _ := syscall.Syscall6(
+// NtQueryInformationProcess
+// __kernel_entry NTSTATUS NtQueryInformationProcess(
+//
+//	[in]            HANDLE           ProcessHandle,
+//	[in]            PROCESSINFOCLASS ProcessInformationClass,
+//	[out]           PVOID            ProcessInformation,
+//	[in]            ULONG            ProcessInformationLength,
+//	[out, optional] PULONG           ReturnLength
+//
+// );
+func NtQueryInformationProcess(processHandle syscall.Handle, processInformationClass int32, processInformation *byte, processInformationLength uint32,
+	returnLength *uint32) uint32 {
+	r1, _, _ := syscall.SyscallN(
 		procNtQueryInformationProcess.Addr(),
-		5,
 		uintptr(processHandle),
 		uintptr(processInformationClass),
 		uintptr(unsafe.Pointer(processInformation)),
 		uintptr(processInformationLength),
-		uintptr(unsafe.Pointer(returnLength)),
-		0)
+		uintptr(unsafe.Pointer(returnLength)))
 	return uint32(r1)
 }
 
 func RtlFreeUnicodeString(unicodeString *UNICODE_STRING) {
-	syscall.Syscall(
+	syscall.SyscallN(
 		procRtlFreeUnicodeString.Addr(),
-		1,
-		uintptr(unsafe.Pointer(unicodeString)),
-		0,
-		0)
+		uintptr(unsafe.Pointer(unicodeString)))
 }
 
 func RtlInitUnicodeString(destinationString *UNICODE_STRING, sourceString *uint16) {
@@ -124,4 +159,34 @@ func RtlInitUnicodeString(destinationString *UNICODE_STRING, sourceString *uint1
 		uintptr(unsafe.Pointer(destinationString)),
 		uintptr(unsafe.Pointer(sourceString)),
 		0)
+}
+
+// NtQueryQuotaInformationFile
+// __kernel_entry NTSYSCALLAPI NTSTATUS NtQueryQuotaInformationFile(
+//
+//	[in]           HANDLE           FileHandle,
+//	[out]          PIO_STATUS_BLOCK IoStatusBlock,
+//	[out]          PVOID            Buffer,
+//	[in]           ULONG            Length,
+//	[in]           BOOLEAN          ReturnSingleEntry,
+//	[in, optional] PVOID            SidList,
+//	[in]           ULONG            SidListLength,
+//	[in, optional] PSID             StartSid,
+//	[in]           BOOLEAN          RestartScan
+//
+// );
+func NtQueryQuotaInformationFile(fileHandle syscall.Handle, ioStatusBlock *IO_STATUS_BLOCK, buffer *byte, length uint32,
+	returnSingleEntry uint32, sidList *byte, sidListLength uint32, startSid uint32, restartScan uint32) uint32 {
+	r1, _, _ := syscall.SyscallN(
+		procRtlInitUnicodeString.Addr(),
+		uintptr(fileHandle),
+		uintptr(unsafe.Pointer(ioStatusBlock)),
+		uintptr(unsafe.Pointer(buffer)),
+		uintptr(length),
+		uintptr(returnSingleEntry),
+		uintptr(unsafe.Pointer(sidList)),
+		uintptr(sidListLength),
+		uintptr(startSid),
+		uintptr(restartScan))
+	return uint32(r1)
 }

@@ -70,7 +70,8 @@ func RegCloseKey(key syscall.Handle) error {
 	return nil
 }
 
-func RegCreateKeyEx(key syscall.Handle, subKey *uint16, reserved uint32, class *uint16, options uint32, samDesired uint32, securityAttributes *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) error {
+func RegCreateKeyEx(key syscall.Handle, subKey *uint16, reserved uint32, class *uint16,
+	options uint32, samDesired uint32, securityAttributes *syscall.SecurityAttributes, result *syscall.Handle, disposition *uint32) error {
 	r1, _, _ := syscall.Syscall9(
 		procRegCreateKeyExW.Addr(),
 		9,

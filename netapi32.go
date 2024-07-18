@@ -83,7 +83,7 @@ func NetGroupDelUser(server, groupName, username string) error {
 	return NewWindowsError("NetGroupDelUser ", syscall.Errno(status))
 }
 
-func NetUserAdd(server, username, password string) error {
+func NetUserAdd(server, username, comment, password string) error {
 	servername := wrappers.Lpcwstr(server)
 	info1 := wrappers.USER_INFO_1{
 		Name:         wrappers.Lpcwstr(username),
@@ -91,12 +91,101 @@ func NetUserAdd(server, username, password string) error {
 		Password_age: 0,
 		Priv:         wrappers.USER_PRIV_USER,
 		Flags:        wrappers.UF_PASSWD_NOTREQD | wrappers.UF_DONT_EXPIRE_PASSWD | wrappers.UF_NORMAL_ACCOUNT,
+		Comment:      wrappers.Lpcwstr(comment),
 	}
 	status := wrappers.NetUserAdd(servername, 1, (*byte)(unsafe.Pointer(&info1)), nil)
 	if status == 0 {
 		return nil
 	}
 	return NewWindowsError("NetUserAdd ", syscall.Errno(status))
+}
+
+func SetBit(value uint32, nBitsIdx int, subOrAdd bool) uint32 {
+	if subOrAdd {
+		value |= 1 << nBitsIdx
+	} else {
+		value = value & (^(1 << nBitsIdx))
+	}
+	return value
+}
+
+func NetUserActive(server, username string, active bool) error {
+	servername := wrappers.Lpcwstr(server)
+	uname := wrappers.Lpcwstr(username)
+	info1 := wrappers.USER_INFO_1{}
+	status := wrappers.NetUserGetInfo(servername, uname, 1, (*byte)(unsafe.Pointer(&info1)))
+	if status != 0 {
+		return NewWindowsError("NetUserGetInfo ", syscall.Errno(status))
+	}
+	info1.Flags = wrappers.DWORD(SetBit(uint32(info1.Flags), wrappers.UF_ACCOUNTDISABLE-1, !active))
+	status = wrappers.NetUserSetInfo(servername, uname, 1, (*byte)(unsafe.Pointer(&info1)), nil)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetUserSetInfo ", syscall.Errno(status))
+}
+
+func NetUserChangePassword(domainname, username, oldpassword, newpassword string) error {
+	status := wrappers.NetUserChangePassword(wrappers.Lpcwstr(domainname), wrappers.Lpcwstr(username), wrappers.Lpcwstr(oldpassword), wrappers.Lpcwstr(newpassword))
+	if status != 0 {
+		return NewWindowsError("NetUserChangePassword ", syscall.Errno(status))
+	}
+	return nil
+}
+
+func NetUserSetPassword(server, username, password string) error {
+	servername := wrappers.Lpcwstr(server)
+	uname := wrappers.Lpcwstr(username)
+	info1 := wrappers.USER_INFO_1{}
+	status := wrappers.NetUserGetInfo(servername, uname, 1, (*byte)(unsafe.Pointer(&info1)))
+	if status != 0 {
+		return NewWindowsError("NetUserGetInfo ", syscall.Errno(status))
+	}
+	info1.Password = wrappers.Lpcwstr(password)
+	status = wrappers.NetUserSetInfo(servername, uname, 1, (*byte)(unsafe.Pointer(&info1)), nil)
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetUserSetInfo ", syscall.Errno(status))
+}
+
+func NetUserDel(server, username string) error {
+	servername := wrappers.Lpcwstr(server)
+	status := wrappers.NetUserDel(servername, wrappers.Lpcwstr(username))
+	if status == 0 {
+		return nil
+	}
+	return NewWindowsError("NetUserDel ", syscall.Errno(status))
+}
+
+func NetUserGroups(server, username string) []wrappers.GroupUserInfo {
+	level := uint32(0)
+	entriesread := uint32(0)
+	totalentries := uint32(0)
+	var buffer uintptr
+	var result []wrappers.GroupUserInfo
+	defer wrappers.NetApiBufferFree(buffer)
+	for {
+		res := wrappers.NetUserGetGroups(wrappers.Lpcwstr(""), wrappers.Lpcwstr(username), level,
+			&buffer,
+			uint32(0xFFFFFFFF),
+			&entriesread, &totalentries)
+		if res == 0 {
+			pos := buffer
+			for i := uint32(0); i < entriesread; i++ {
+				encodedUserRecord := (*wrappers.GROUP_USERS_INFO_0)(unsafe.Pointer(pos))
+				if encodedUserRecord == nil {
+					break
+				}
+				result = append(result, encodedUserRecord.GroupUserInfo())
+				pos = pos + unsafe.Sizeof(*encodedUserRecord)
+			}
+		}
+		if res != wrappers.NET_API_STATUS(wrappers.ERROR_MORE_DATA) {
+			break
+		}
+	}
+	return result
 }
 
 func NetUserSetGroups(server, username string, groups ...string) error {
@@ -121,7 +210,6 @@ func NetUserSetGroups(server, username string, groups ...string) error {
 
 func NetGroupGetUsers(groupName string) []wrappers.GroupUserInfo {
 	level := uint32(0)
-
 	entriesread := uint32(0)
 	totalentries := uint32(0)
 	resumeHandle := uint32(0)
@@ -150,27 +238,28 @@ func NetGroupGetUsers(groupName string) []wrappers.GroupUserInfo {
 	return result
 }
 
-func NetGroupEnum() []wrappers.GroupInfo1 {
+func NetGroupEnum() []wrappers.GroupInfo {
 	level := uint32(0)
 	entriesread := uint32(0)
 	totalentries := uint32(0)
-	resumeHandle := uint32(0)
 	var buffer uintptr
-	var result []wrappers.GroupInfo1
+	var resumeHandle uintptr
+	var result []wrappers.GroupInfo
+	var serverName string
 	defer wrappers.NetApiBufferFree(buffer)
 	for {
-		res := wrappers.NetGroupEnum(syscall.StringToUTF16Ptr(""), level,
+		res := wrappers.NetGroupEnum(syscall.StringToUTF16Ptr(serverName), level,
 			&buffer,
 			uint32(65536),
 			&entriesread, &totalentries, &resumeHandle)
 		if syscall.Errno(res) == wrappers.ERROR_SUCCESS || syscall.Errno(res) == wrappers.ERROR_MORE_DATA {
 			pos := buffer
 			for i := uint32(0); i < entriesread; i++ {
-				encodedUserRecord := (*wrappers.GROUP_INFO_1)(unsafe.Pointer(pos))
+				encodedUserRecord := (*wrappers.GROUP_INFO_0)(unsafe.Pointer(pos))
 				if encodedUserRecord == nil {
 					break
 				}
-				result = append(result, encodedUserRecord.GroupInfo1())
+				result = append(result, encodedUserRecord.GroupInfo())
 				pos = pos + unsafe.Sizeof(*encodedUserRecord)
 			}
 		}

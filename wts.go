@@ -223,6 +223,17 @@ func (wts *WTSServer) LogoffSession(sessionID uint, wait bool) error {
 	return wrappers.WTSLogoffSession(wts.handle, uint32(sessionID), wait)
 }
 
+func (wts *WTSServer) WTSDisconnectSession(sessionID uint, wait bool) error {
+	return wrappers.WTSDisconnectSession(wts.handle, uint32(sessionID), wait)
+}
+
+func (wts *WTSServer) WTSTerminateProcess(sessionID uint, pid uint32) error {
+	return wrappers.WTSTerminateProcess(wts.handle, uint32(sessionID), pid)
+}
+func (wts *WTSServer) WTSSendMessageW(sessionId uint, title, content string, response *uint32) error {
+	return wrappers.WTSSendMessageW(wts.handle, uint32(sessionId), title, content, response)
+}
+
 func (wts *WTSServer) QuerySessionInitialProgram(sessionID uint) (string, error) {
 	return wts.querySessionInformationAsString(sessionID, wrappers.WTSInitialProgram)
 }

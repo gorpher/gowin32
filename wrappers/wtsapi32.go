@@ -18,6 +18,7 @@ package wrappers
 
 import (
 	"fmt"
+	"github.com/gorpher/gowin32/win"
 	"syscall"
 	"unsafe"
 )
@@ -173,6 +174,9 @@ var (
 	procWTSFreeMemory                  = modwtsapi32.NewProc("WTSFreeMemory")
 	procWTSOpenServer                  = modwtsapi32.NewProc("WTSOpenServerW")
 	procWTSLogoffSession               = modwtsapi32.NewProc("WTSLogoffSession")
+	procWTSDisconnectSession           = modwtsapi32.NewProc("WTSDisconnectSession")
+	procWTSTerminateProcess            = modwtsapi32.NewProc("WTSTerminateProcess")
+	procWTSSendMessageW                = modwtsapi32.NewProc("WTSSendMessageW")
 	procWTSQuerySessionInformation     = modwtsapi32.NewProc("WTSQuerySessionInformationW")
 	procWTSQueryUserToken              = modwtsapi32.NewProc("WTSQueryUserToken")
 	procWTSEnumerateProcessesEx        = modwtsapi32.NewProc("WTSEnumerateProcessesExW")
@@ -283,6 +287,65 @@ func WTSLogoffSession(handle syscall.Handle, sessionId uint32, wait bool) error 
 		uintptr(handle),
 		uintptr(sessionId),
 		boolToUintptr(wait))
+
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+func WTSDisconnectSession(handle syscall.Handle, sessionId uint32, wait bool) error {
+	r1, _, e1 := syscall.Syscall(
+		procWTSDisconnectSession.Addr(),
+		3,
+		uintptr(handle),
+		uintptr(sessionId),
+		boolToUintptr(wait))
+
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func WTSTerminateProcess(handle syscall.Handle, sessionId uint32, pid uint32) error {
+	r1, _, e1 := syscall.SyscallN(
+		procWTSTerminateProcess.Addr(),
+		uintptr(handle),
+		uintptr(sessionId),
+		uintptr(pid))
+
+	if r1 == 0 {
+		if e1 != ERROR_SUCCESS {
+			return e1
+		} else {
+			return syscall.EINVAL
+		}
+	}
+	return nil
+}
+
+func WTSSendMessageW(handle syscall.Handle, sessionId uint32, title, content string, response *uint32) error {
+	r1, _, e1 := syscall.SyscallN(
+		procWTSSendMessageW.Addr(),
+		uintptr(handle),
+		uintptr(sessionId),
+		uintptr(unsafe.Pointer(Lpcwstr(title))),
+		uintptr(uint32(len(title)*2)),
+		uintptr(unsafe.Pointer(Lpcwstr(content))),
+		uintptr(uint32(len(content)*2)),
+		uintptr(uint32(win.MB_OK)),
+		uintptr(uint32(10)),
+		uintptr(unsafe.Pointer(response)),
+		uintptr(uint32(win.FALSE)),
+	)
 
 	if r1 == 0 {
 		if e1 != ERROR_SUCCESS {

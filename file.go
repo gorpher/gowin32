@@ -80,7 +80,8 @@ const (
 	FileFlagFirstPipeInstance FileFlags = wrappers.FILE_FLAG_FIRST_PIPE_INSTANCE
 )
 
-func OpenWindowsFile(fileName string, readWrite bool, shareMode FileShareMode, creationDisposition FileCreationDisposition, attributes FileAttributes, flags FileFlags) (*os.File, error) {
+func OpenWindowsFile(fileName string, readWrite bool, shareMode FileShareMode,
+	creationDisposition FileCreationDisposition, attributes FileAttributes, flags FileFlags) (*os.File, error) {
 	var accessMask uint32 = wrappers.GENERIC_READ
 	if readWrite {
 		accessMask |= wrappers.GENERIC_WRITE
