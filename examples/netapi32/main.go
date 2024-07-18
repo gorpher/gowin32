@@ -54,7 +54,7 @@ func main() {
 		}
 	}
 
-	err = gowin32.AddNetShare(username, shareDir, shareName, gowin32.FileAllAccess)
+	err = gowin32.AddNetShare(username, shareDir, shareName)
 	if err != nil {
 		panic(err)
 	}
