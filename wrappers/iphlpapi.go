@@ -106,31 +106,31 @@ func GetBestRoute(destAddr, sourceAddr uint32, bestRoute *MIB_IPFORWARDROW) int 
 	return int(ret)
 }
 
-func GetIpForwardTable(table *MIB_IPFORWARDTABLE, size *uint32, order int32) int {
-	ret, _, _ := procGetIpForwardTable.Call(
-		uintptr(unsafe.Pointer(table)),
-		uintptr(unsafe.Pointer(size)),
-		uintptr(order),
-	)
-	return int(ret)
-}
+//func GetIpForwardTable(table *MIB_IPFORWARDTABLE, size *uint32, order int32) int {
+//	ret, _, _ := procGetIpForwardTable.Call(
+//		uintptr(unsafe.Pointer(table)),
+//		uintptr(unsafe.Pointer(size)),
+//		uintptr(order),
+//	)
+//	return int(ret)
+//}
 
-func GetInterfaceInfo(ifTable *IP_INTERFACE_INFO, outBufLen *uint32) int {
-	ret, _, _ := procGetInterfaceInfo.Call(
-		uintptr(unsafe.Pointer(ifTable)),
-		uintptr(unsafe.Pointer(outBufLen)),
-	)
-	return int(ret)
-}
+//func GetInterfaceInfo(ifTable *IP_INTERFACE_INFO, outBufLen *uint32) int {
+//	ret, _, _ := procGetInterfaceInfo.Call(
+//		uintptr(unsafe.Pointer(ifTable)),
+//		uintptr(unsafe.Pointer(outBufLen)),
+//	)
+//	return int(ret)
+//}
 
-func GetIfTable(table *MIB_IFTABLE, size *uint32, order int32) int {
-	ret, _, _ := procGetIfTable.Call(
-		uintptr(unsafe.Pointer(table)),
-		uintptr(unsafe.Pointer(size)),
-		uintptr(order),
-	)
-	return int(ret)
-}
+//func GetIfTable(table *MIB_IFTABLE, size *uint32, order int32) int {
+//	ret, _, _ := procGetIfTable.Call(
+//		uintptr(unsafe.Pointer(table)),
+//		uintptr(unsafe.Pointer(size)),
+//		uintptr(order),
+//	)
+//	return int(ret)
+//}
 
 func DeleteIpForwardEntry(route *MIB_IPFORWARDROW) uint32 {
 	ret, _, _ := procDeleteIpForwardEntry.Call(

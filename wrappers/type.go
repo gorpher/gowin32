@@ -219,10 +219,10 @@ type MIB_TCPROW_OWNER_PID struct {
 	OwningPid  DWORD
 }
 
-type MIB_TCPTABLE_OWNER_PID struct {
-	NumEntries DWORD
-	Table      [1 << 30]MIB_TCPROW_OWNER_PID
-}
+//type MIB_TCPTABLE_OWNER_PID struct {
+//	NumEntries DWORD
+//	Table      [1 << 30]MIB_TCPROW_OWNER_PID
+//}
 
 type TCP_TABLE_CLASS DWORD
 
@@ -251,15 +251,15 @@ type MIB_UDP6ROW_OWNER_PID struct {
 	OwningPid    DWORD
 }
 
-type MIB_UDPTABLE_OWNER_PID struct {
-	NumEntries DWORD
-	Table      [1 << 30]MIB_UDPROW_OWNER_PID
-}
-
-type MIB_UDP6TABLE_OWNER_PID struct {
-	NumEntries DWORD
-	Table      [1 << 30]MIB_UDP6ROW_OWNER_PID
-}
+//type MIB_UDPTABLE_OWNER_PID struct {
+//	NumEntries DWORD
+//	Table      [1 << 30]MIB_UDPROW_OWNER_PID
+//}
+//
+//type MIB_UDP6TABLE_OWNER_PID struct {
+//	NumEntries DWORD
+//	Table      [1 << 30]MIB_UDP6ROW_OWNER_PID
+//}
 
 type UDP_TABLE_CLASS DWORD
 
@@ -299,25 +299,25 @@ type MIB_IPFORWARDROW struct {
 	ForwardMetric5   uint32
 }
 
-type MIB_IPFORWARDTABLE struct {
-	NumEntries DWORD
-	Table      [1 << 30]MIB_IPFORWARDROW
-}
+//type MIB_IPFORWARDTABLE struct {
+//	NumEntries DWORD
+//	Table      [1 << 30]MIB_IPFORWARDROW
+//}
+//
+//type IP_INTERFACE_INFO struct {
+//	NumAdapters int32
+//	Adapter     [1 << 30]IP_ADAPTER_INDEX_MAP
+//}
 
-type IP_INTERFACE_INFO struct {
-	NumAdapters int32
-	Adapter     [1 << 30]IP_ADAPTER_INDEX_MAP
-}
+//type IP_ADAPTER_INDEX_MAP struct {
+//	Index uint32
+//	Name  [MAX_ADAPTER_NAME]uint16
+//}
 
-type IP_ADAPTER_INDEX_MAP struct {
-	Index uint32
-	Name  [MAX_ADAPTER_NAME]uint16
-}
-
-type MIB_IFTABLE struct {
-	NumEntries uint32
-	Table      [1 << 30]MIB_IFROW
-}
+//type MIB_IFTABLE struct {
+//	NumEntries uint32
+//	Table      [1 << 30]MIB_IFROW
+//}
 
 type MIB_IFROW struct {
 	Name            [MAX_INTERFACE_NAME_LEN]uint16
